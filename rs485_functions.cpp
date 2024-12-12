@@ -33,7 +33,7 @@ byte responseBuffer[1];   // Buffer to send single response back to device drive
 uint8_t numReceivedPins = 0;
 
 void updateCrc(uint8_t *buf, uint16_t len) {
-  uint16_t crc = _calculateCrc(buf, len);
+  uint16_t crc = calculateCrc(buf, len);
   buf[len] = lowByte(crc);
   buf[len + 1] = highByte(crc);
 }
@@ -61,14 +61,23 @@ uint16_t calculateCrc(uint8_t *buf, uint16_t len) {
 /*
 * Function triggered when CommandStation is sending data to this device.
 */
-void receiveEvent(int numBytes) {
-  if (numBytes == 0) {
+void receiveEvent() {
+  byte buffer[25];
+  unsigned long startMillis = millis();
+  if (!RS485_SERIAL.available()) {
     return;
   }
-  byte buffer[numBytes];
-  for (uint8_t byte = 0; byte < numBytes; byte++) {
-    buffer[byte] = Wire.read();   // Read all received bytes into our buffer array
-  }
+  uint16_t len = 0;
+  unsigned long startMicros = micros();
+  do {
+    if (RS485_SERIAL.available()) {
+      startMicros = micros();
+      buffer[len] = RS485_SERIAL.read();
+      len++;
+    }
+  } while (micros() - startMicros <= 500 && len < 256);
+  if (!crcGood(responseBuffer,sizeof(responseBuffer)-2)) return;
+  int numBytes = len-2;
   switch(buffer[0]) {
     // Initial configuration start, must be 2 bytes
     case EXIOINIT:
@@ -185,6 +194,7 @@ void receiveEvent(int numBytes) {
 * Function triggered when CommandStation polls for inputs on this device.
 */
 void requestEvent() {
+  
   switch(outboundFlag) {
     case EXIOINIT:
       if (setupComplete) {
@@ -196,31 +206,92 @@ void requestEvent() {
         commandBuffer[1] = 0;
         commandBuffer[2] = 0;
       }
-      Wire.write(commandBuffer, 3);
+      uint8_t newBufferA[5];
+      memcpy(newBufferA, commandBuffer, sizeof(commandBuffer));
+      updateCrc(newBufferA, sizeof(newBufferA)-2);
+      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
+      RS485_SERIAL.write(commandBuffer, sizeof(commandBuffer));
+      RS485_SERIAL.flush();
+      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, LOW);
       break;
     case EXIOINITA:
-      Wire.write(analoguePinMap, numAnaloguePins);
+      uint8_t newBufferB[5];
+      calloc(*newBufferB, numAnaloguePins+2);
+      memcpy(newBufferB, analoguePinMap, numAnaloguePins);
+      updateCrc(newBufferB, sizeof(newBufferB)-2);
+      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
+      RS485_SERIAL.write(analoguePinMap, numAnaloguePins+2);
+      RS485_SERIAL.flush();
+      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, LOW);
       break;
     case EXIORDAN:
-      Wire.write(analoguePinStates, analoguePinBytes);
+      uint8_t newBufferC[5];
+      calloc(*newBufferC, analoguePinBytes+2);
+      memcpy(newBufferC, analoguePinStates, analoguePinBytes);
+      updateCrc(newBufferC, sizeof(newBufferC)-2);
+      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
+      RS485_SERIAL.write(analoguePinStates, analoguePinBytes+2);
+      RS485_SERIAL.flush();
+      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, LOW);
       break;
     case EXIORDD:
-      Wire.write(digitalPinStates, digitalPinBytes);
+      uint8_t newBufferD[5];
+      calloc(*newBufferD, digitalPinBytes+2);
+      memcpy(newBufferD, digitalPinStates, digitalPinBytes);
+      updateCrc(newBufferD, sizeof(newBufferD)-2);
+      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
+      RS485_SERIAL.write(digitalPinStates, digitalPinBytes+2);
+      RS485_SERIAL.flush();
+      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, LOW);
       break;
     case EXIOVER:
-      Wire.write(versionBuffer, 3);
+      uint8_t newBufferE[5];
+      memcpy(newBufferE, versionBuffer,sizeof(versionBuffer));
+      updateCrc(newBufferE, sizeof(newBufferE)-2);
+      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
+      RS485_SERIAL.write(versionBuffer, sizeof(newBufferE));
+      RS485_SERIAL.flush();
+      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, LOW);
       break;
     case EXIODPUP:
-      Wire.write(responseBuffer, 1);
+      uint8_t newBufferF[5];
+      calloc(*newBufferF, 3);
+      memcpy(newBufferF, responseBuffer, sizeof(responseBuffer));
+      updateCrc(newBufferF, sizeof(newBufferF)-2);
+      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
+      RS485_SERIAL.write(responseBuffer, sizeof(newBufferF));
+      RS485_SERIAL.flush();
+      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, LOW);
       break;
     case EXIOENAN:
-      Wire.write(responseBuffer, 1);
+      uint8_t newBufferG[5];
+      calloc(*newBufferG, 3);
+      memcpy(newBufferG, responseBuffer, sizeof(responseBuffer));
+      updateCrc(newBufferG, sizeof(newBufferG)-2);
+      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
+      RS485_SERIAL.write(responseBuffer, sizeof(newBufferG));
+      RS485_SERIAL.flush();
+      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, LOW);
       break;
     case EXIOWRAN:
-      Wire.write(responseBuffer, 1);
+      uint8_t newBufferH[5];
+      calloc(*newBufferH, 3);
+      memcpy(newBufferH, responseBuffer, sizeof(responseBuffer));
+      updateCrc(newBufferH, sizeof(newBufferH)-2);
+      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
+      RS485_SERIAL.write(responseBuffer, sizeof(newBufferH));
+      RS485_SERIAL.flush();
+      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, LOW);
       break;
     case EXIOWRD:
-      Wire.write(responseBuffer, 1);
+      uint8_t newBufferI[5];
+      calloc(*newBufferI, 3);
+      memcpy(newBufferI, responseBuffer, sizeof(responseBuffer));
+      updateCrc(newBufferI, sizeof(newBufferI)-2);
+      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
+      RS485_SERIAL.write(responseBuffer, sizeof(newBufferI));
+      RS485_SERIAL.flush();
+      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, LOW);
       break;
     default:
       break;
@@ -231,6 +302,8 @@ void disableWire() {
 #ifdef WIRE_HAS_END
   Wire.end();
 #else
+#if defined(USB_SERIAL)
   USB_SERIAL.println(F("WARNING! The Wire.h library has no end() function, ensure EX-IOExpander is disconnected from your CommandStation"));
+#endif
 #endif
 }

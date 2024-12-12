@@ -91,8 +91,9 @@ void setup() {
 #if defined(ARDUINO_BLUEPILL_F103C8)
   disableJTAG();
 #endif
-  Serial.begin(115200);
-  USB_SERIAL.print(F("DCC-EX EX-IOExpander v"));
+  RS485_SERIAL.begin(115200);
+  USB_SERIAL.begin(115200);
+  USB_SERIAL.print(F("DCC-EX EX-IOExpander485 v"));
   USB_SERIAL.println(VERSION);
   USB_SERIAL.print(F("Detected device: "));
   USB_SERIAL.println(BOARD_TYPE);

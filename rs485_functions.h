@@ -26,8 +26,8 @@
 extern uint8_t numReceivedPins;
 void updateCrc(uint8_t *buf, uint16_t len);
 bool crcGood(uint8_t *buf, uint16_t len);
-uint16_t calculateCrc(uint8_t *buf, uint16_t len)
-void receiveEvent(int numBytes);
+uint16_t calculateCrc(uint8_t *buf, uint16_t len);
+void receiveEvent();
 void requestEvent();
 void disableWire();
 
