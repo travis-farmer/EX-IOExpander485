@@ -1,0 +1,10 @@
+Release/*
+.ino.cpp
+.pioenvs
+.piolibdeps
+.clang_complete
+.gcc-flags.json
+.pio/
+.vscode/
+my*.h
+!myConfig.example.h
