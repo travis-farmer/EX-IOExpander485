@@ -18,9 +18,8 @@
  */
 
 #include <Arduino.h>
-#include <Wire.h>
 #include "globals.h"
-#include "i2c_functions.h"
+#include "rs485_functions.h"
 #include "display_functions.h"
 #include "pin_io_functions.h"
 
@@ -32,6 +31,32 @@ uint8_t outboundFlag;   // Used to determine what data to send back to the Comma
 byte commandBuffer[3];    // Command buffer to interact with device driver
 byte responseBuffer[1];   // Buffer to send single response back to device driver
 uint8_t numReceivedPins = 0;
+
+void updateCrc(uint8_t *buf, uint16_t len) {
+  uint16_t crc = _calculateCrc(buf, len);
+  buf[len] = lowByte(crc);
+  buf[len + 1] = highByte(crc);
+}
+
+bool crcGood(uint8_t *buf, uint16_t len) {
+  uint16_t aduCrc = buf[len] | (buf[len + 1] << 8);
+  uint16_t calculatedCrc = calculateCrc(buf, len);
+  if (aduCrc == calculatedCrc) return true;
+  else return false;
+}
+
+uint16_t calculateCrc(uint8_t *buf, uint16_t len) {
+  uint16_t value = 0xFFFF;
+  for (uint16_t i = 0; i < len; i++) {
+    value ^= (uint16_t)buf[i];
+    for (uint8_t j = 0; j < 8; j++) {
+      bool lsb = value & 1;
+      value >>= 1;
+      if (lsb == true) value ^= 0xA001;
+    }
+  }
+  return value;
+}
 
 /*
 * Function triggered when CommandStation is sending data to this device.

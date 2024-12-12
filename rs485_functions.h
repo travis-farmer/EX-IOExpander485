@@ -17,14 +17,16 @@
  *  along with CommandStation.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef I2C_FUNCTIONS_H
-#define I2C_FUNCTIONS_H
+#ifndef RS485_FUNCTIONS_H
+#define RS485_FUNCTIONS_H
 
 #include <Arduino.h>
 #include "globals.h"
 
 extern uint8_t numReceivedPins;
-
+void updateCrc(uint8_t *buf, uint16_t len);
+bool crcGood(uint8_t *buf, uint16_t len);
+uint16_t calculateCrc(uint8_t *buf, uint16_t len)
 void receiveEvent(int numBytes);
 void requestEvent();
 void disableWire();
