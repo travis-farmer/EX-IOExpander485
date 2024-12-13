@@ -30,5 +30,5 @@ uint16_t calculateCrc(uint8_t *buf, uint16_t len);
 void receiveEvent();
 void requestEvent();
 void disableWire();
-
+void addMasterFlag(uint8_t *buf);
 #endif

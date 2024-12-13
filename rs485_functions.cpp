@@ -78,6 +78,9 @@ void receiveEvent() {
   } while (micros() - startMicros <= 500 && len < 256);
   if (!crcGood(responseBuffer,sizeof(responseBuffer)-2)) return;
   int numBytes = len-2;
+  if (buffer[0] == 0xFF) return; // other nodes sending to master
+  if (buffer[1] != RS485_NODE) return; // not for us
+  for (int i = 2; i < numBytes-1; i++) buffer[i-1] = buffer[i]; // reorder buffer[]
   switch(buffer[0]) {
     // Initial configuration start, must be 2 bytes
     case EXIOINIT:
@@ -190,6 +193,12 @@ void receiveEvent() {
   }
 }
 
+void addMasterFlag(uint8_t *buf) {
+  //streach buffer and add master flag
+  for (int i = sizeof(buf)-2; i > 0; i--) buf[i] = buf[i-1];
+  buf[0] = 0xFF;
+}
+
 /*
 * Function triggered when CommandStation polls for inputs on this device.
 */
@@ -208,6 +217,8 @@ void requestEvent() {
       }
       uint8_t newBufferA[5];
       memcpy(newBufferA, commandBuffer, sizeof(commandBuffer));
+      calloc(*newBufferA, sizeof(newBufferA)+1);
+      addMasterFlag(newBufferA);
       updateCrc(newBufferA, sizeof(newBufferA)-2);
       if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(commandBuffer, sizeof(commandBuffer));
@@ -218,6 +229,8 @@ void requestEvent() {
       uint8_t newBufferB[5];
       calloc(*newBufferB, numAnaloguePins+2);
       memcpy(newBufferB, analoguePinMap, numAnaloguePins);
+      calloc(*newBufferB, sizeof(newBufferA)+1);
+      addMasterFlag(newBufferB);
       updateCrc(newBufferB, sizeof(newBufferB)-2);
       if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(analoguePinMap, numAnaloguePins+2);
@@ -228,6 +241,8 @@ void requestEvent() {
       uint8_t newBufferC[5];
       calloc(*newBufferC, analoguePinBytes+2);
       memcpy(newBufferC, analoguePinStates, analoguePinBytes);
+      calloc(*newBufferC, sizeof(newBufferA)+1);
+      addMasterFlag(newBufferC);
       updateCrc(newBufferC, sizeof(newBufferC)-2);
       if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(analoguePinStates, analoguePinBytes+2);
@@ -238,6 +253,8 @@ void requestEvent() {
       uint8_t newBufferD[5];
       calloc(*newBufferD, digitalPinBytes+2);
       memcpy(newBufferD, digitalPinStates, digitalPinBytes);
+      calloc(*newBufferD, sizeof(newBufferA)+1);
+      addMasterFlag(newBufferD);
       updateCrc(newBufferD, sizeof(newBufferD)-2);
       if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(digitalPinStates, digitalPinBytes+2);
@@ -247,6 +264,8 @@ void requestEvent() {
     case EXIOVER:
       uint8_t newBufferE[5];
       memcpy(newBufferE, versionBuffer,sizeof(versionBuffer));
+      calloc(*newBufferE, sizeof(newBufferA)+1);
+      addMasterFlag(newBufferE);
       updateCrc(newBufferE, sizeof(newBufferE)-2);
       if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(versionBuffer, sizeof(newBufferE));
@@ -257,6 +276,8 @@ void requestEvent() {
       uint8_t newBufferF[5];
       calloc(*newBufferF, 3);
       memcpy(newBufferF, responseBuffer, sizeof(responseBuffer));
+      calloc(*newBufferF, sizeof(newBufferA)+1);
+      addMasterFlag(newBufferF);
       updateCrc(newBufferF, sizeof(newBufferF)-2);
       if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(responseBuffer, sizeof(newBufferF));
@@ -267,6 +288,8 @@ void requestEvent() {
       uint8_t newBufferG[5];
       calloc(*newBufferG, 3);
       memcpy(newBufferG, responseBuffer, sizeof(responseBuffer));
+      calloc(*newBufferG, sizeof(newBufferA)+1);
+      addMasterFlag(newBufferG);
       updateCrc(newBufferG, sizeof(newBufferG)-2);
       if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(responseBuffer, sizeof(newBufferG));
@@ -277,6 +300,8 @@ void requestEvent() {
       uint8_t newBufferH[5];
       calloc(*newBufferH, 3);
       memcpy(newBufferH, responseBuffer, sizeof(responseBuffer));
+      calloc(*newBufferH, sizeof(newBufferA)+1);
+      addMasterFlag(newBufferH);
       updateCrc(newBufferH, sizeof(newBufferH)-2);
       if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(responseBuffer, sizeof(newBufferH));
@@ -287,6 +312,8 @@ void requestEvent() {
       uint8_t newBufferI[5];
       calloc(*newBufferI, 3);
       memcpy(newBufferI, responseBuffer, sizeof(responseBuffer));
+      calloc(*newBufferI, sizeof(newBufferA)+1);
+      addMasterFlag(newBufferI);
       updateCrc(newBufferI, sizeof(newBufferI)-2);
       if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(responseBuffer, sizeof(newBufferI));
