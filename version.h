@@ -2,8 +2,15 @@
 #define VERSION_H
 
 // Version must only ever be numeric in order to be able to send it to the CommandStation
-#define VERSION "0.0.23"
+#define VERSION "0.0.1"
 
+// 0.0.1 includes:
+//  - All previous features, but copied as a template from EX-IOExpander, and moved version
+//    to 0.0.0, and name to EX-IOExpander485.
+//  - ifdef out USB_SERIAL opperations on one serial port boards.
+//  - fixed some Serial functions that should be pointed to USB_SERIAL.
+//  - moved from I2C comms to RS485 Comms with CRC error checking.
+//  - remove RS485_SERIAL and RS485_DEPIN pin conflicts
 // 0.0.23 includes:
 //  - Add use of Servo library for controlling servos for supported platforms
 //  - Add SuperPin class for neat dimming of LEDs without needing hardware PWM pins

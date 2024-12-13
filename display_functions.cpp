@@ -21,7 +21,7 @@
 #include "globals.h"
 #include "version.h"
 #include "display_functions.h"
-#include "i2c_functions.h"
+#include "rs485_functions.h"
 
 char * version;   // Pointer for getting version
 uint8_t versionBuffer[3];   // Array to hold version info to send to device driver
@@ -52,7 +52,9 @@ void setVersion() {
 void displayPins() {
   if (millis() - lastPinDisplay > displayDelay) {
     lastPinDisplay = millis();
+#if defined(USB_SERIAL)
     USB_SERIAL.println("Current pin states:");
+#endif
     for (uint8_t pin = 0; pin < numPins; pin++) {
       String pinLabel = pinNameMap[pin].pinLabel;
       if (pinLabel.length() == 1) {
@@ -64,14 +66,17 @@ void displayPins() {
       }
       switch(exioPins[pin].mode) {
         case MODE_UNUSED: {
+#if defined(USB_SERIAL)
           USB_SERIAL.print(F("Pin "));
           USB_SERIAL.print(pinLabel);
           USB_SERIAL.println(F(" not in use"));
+#endif
           break;
         }
         case MODE_DIGITAL: {
           uint8_t dPinByte = pin / 8;
           uint8_t dPinBit = pin - dPinByte * 8;
+#if defined(USB_SERIAL)
           USB_SERIAL.print(F("Digital Pin|Direction|Pullup|State:"));
           USB_SERIAL.print(pinLabel);
           USB_SERIAL.print(F("|"));
@@ -80,11 +85,13 @@ void displayPins() {
           USB_SERIAL.print(exioPins[pin].pullup);
           USB_SERIAL.print(F("|"));
           USB_SERIAL.println(bitRead(digitalPinStates[dPinByte], dPinBit));
+#endif
           break;
         }
         case MODE_ANALOGUE: {
           uint8_t lsbByte = exioPins[pin].analogueLSBByte;
           uint8_t msbByte = lsbByte + 1;
+#if defined(USB_SERIAL)
           USB_SERIAL.print(F("Analogue Pin|Value|LSB|MSB:"));
           USB_SERIAL.print(pinLabel);
           USB_SERIAL.print(F("|"));
@@ -93,28 +100,33 @@ void displayPins() {
           USB_SERIAL.print(analoguePinStates[lsbByte]);
           USB_SERIAL.print(F("|"));
           USB_SERIAL.println(analoguePinStates[msbByte]);
+#endif
           break;
         }
         case MODE_PWM: {
           uint8_t dPinByte = pin / 8;
           uint8_t dPinBit = pin - dPinByte * 8;
+#if defined(USB_SERIAL)
           USB_SERIAL.print(F("PWM Output Pin|Servo|State:"));
           USB_SERIAL.print(pinLabel);
           USB_SERIAL.print(F("|"));
           USB_SERIAL.print(exioPins[pin].servoIndex);
           USB_SERIAL.print(F("|"));
           USB_SERIAL.println(bitRead(digitalPinStates[dPinByte], dPinBit));
+#endif
           break;
         }
         case MODE_PWM_LED: {
           uint8_t dPinByte = pin / 8;
           uint8_t dPinBit = pin - dPinByte * 8;
+#if defined(USB_SERIAL)
           USB_SERIAL.print(F("LED Output Pin|Servo|State:"));
           USB_SERIAL.print(pinLabel);
           USB_SERIAL.print(F("|"));
           USB_SERIAL.print(exioPins[pin].servoIndex);
           USB_SERIAL.print(F("|"));
           USB_SERIAL.println(bitRead(digitalPinStates[dPinByte], dPinBit));
+#endif
           break;
         }
         default:
@@ -128,6 +140,7 @@ void displayPins() {
 * Function to display Vpin to physical pin mappings after initialisation
 */
 void displayVpinMap() {
+#if defined(USB_SERIAL)
   uint16_t vpin = firstVpin;
   USB_SERIAL.println(F("Vpin to physical pin mappings (Vpin => physical pin):"));
   for (uint8_t pin = 0; pin < numPins; pin++) {
@@ -154,9 +167,11 @@ void displayVpinMap() {
     }
     vpin++;
   }
+#endif
 }
 
 void processDisplayOutput() {
+#if defined(USB_SERIAL)
   switch (displayEvent) {
     case EXIOINIT:
       if (displayEventFlag == 0) {
@@ -207,12 +222,14 @@ void processDisplayOutput() {
     default:
       break;
   }
+#endif
 }
 
 /*
 * Function to display startup info
 */
 void startupDisplay() {
+#if defined(USB_SERIAL)
   USB_SERIAL.print(F("DCC-EX EX-IOExpander v"));
   USB_SERIAL.println(VERSION);
   USB_SERIAL.print(F("Detected device: "));
@@ -242,5 +259,6 @@ void startupDisplay() {
   USB_SERIAL.print(I2C_SDA);
   USB_SERIAL.print(F("|"));
   USB_SERIAL.println(I2C_SCL);
+#endif
 #endif
 }

@@ -22,7 +22,7 @@
 
 #include <Arduino.h>
 #include "globals.h"
-
+#if defined(USB_SERIAL)
 void processSerialInput();
 void setAnalogueTesting();
 void serialCaseD(unsigned long parameter);
@@ -32,5 +32,5 @@ void setPullupTesting();
 void serialCaseR();
 void serialCaseT();
 void serialCaseW(unsigned long parameter);
-
+#endif
 #endif

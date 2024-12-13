@@ -23,7 +23,7 @@
 #include "test_functions.h"
 #include "device_functions.h"
 #include "display_functions.h"
-
+#if defined(USB_SERIAL)
 bool newSerialData = false;   // Flag for new serial data being received
 const byte numSerialChars = 20;   // Max number of chars for serial input
 char serialInputChars[numSerialChars];  // Char array for serial input
@@ -37,8 +37,8 @@ void processSerialInput() {
   char startMarker = '<';
   char endMarker = '>';
   char serialChar;
-  while (Serial.available() > 0 && newSerialData == false) {
-    serialChar = Serial.read();
+  while (USB_SERIAL.available() > 0 && newSerialData == false) {
+    serialChar = USB_SERIAL.read();
     if (serialInProgress == true) {
       if (serialChar != endMarker) {
         serialInputChars[serialIndex] = serialChar;
@@ -206,3 +206,4 @@ void serialCaseW(unsigned long parameter) {
     USB_SERIAL.println(F("Invalid I2C address, must be between 0x08 and 0x77"));
   }
 }
+#endif

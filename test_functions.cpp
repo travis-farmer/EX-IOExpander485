@@ -20,7 +20,7 @@
 #include <Arduino.h>
 #include "globals.h"
 #include "test_functions.h"
-#include "i2c_functions.h"
+#include "rs485_functions.h"
 #include "pin_io_functions.h"
 
 bool analogueTesting = false; // Flag that analogue input testing is enabled/disabled
@@ -35,9 +35,10 @@ bool pullupTesting = false;   // Flag that digital input testing with pullups is
 */
 void testAnalogue(bool enable) {
   if (enable) {
+#if defined(USB_SERIAL)
     USB_SERIAL.println(F("Analogue input testing enabled, I2C connection disabled, diags enabled, reboot once testing complete"));
+#endif
     setupComplete = true;
-    disableWire();
     testInput(false);
     testOutput(false);
     testPullup(false);
@@ -59,9 +60,10 @@ void testAnalogue(bool enable) {
 
 void testInput(bool enable) {
   if (enable) {
+  #if defined(USB_SERIAL)
     USB_SERIAL.println(F("Input testing (no pullups) enabled, I2C connection disabled, diags enabled, reboot once testing complete"));
+  #endif
     setupComplete = true;
-    disableWire();
     testAnalogue(false);
     testOutput(false);
     testPullup(false);
@@ -84,9 +86,10 @@ void testInput(bool enable) {
 
 void testOutput(bool enable) {
   if (enable) {
+#if defined(USB_SERIAL)
     USB_SERIAL.println(F("Output testing enabled, I2C connection disabled, diags enabled, reboot once testing complete"));
+#endif
     setupComplete = true;
-    disableWire();
     testAnalogue(false);
     testInput(false);
     testPullup(false);
@@ -108,9 +111,10 @@ void testOutput(bool enable) {
 
 void testPullup(bool enable) {
   if (enable) {
+#if defined(USB_SERIAL)
     USB_SERIAL.println(F("Pullup input testing enabled, I2C connection disabled, diags enabled, reboot once testing complete"));
+#endif
     setupComplete = true;
-    disableWire();
     testAnalogue(false);
     testOutput(false);
     testInput(false);
@@ -133,11 +137,16 @@ void testPullup(bool enable) {
 
 void testServo(uint8_t vpin, uint16_t value, uint8_t profile) {
   if (firstVpin > 0) {
+#if defined(USB_SERIAL)
     USB_SERIAL.println(F("EX-IOExpander has been connected and configured, please disconnect from EX-CommandStation and reboot"));
+#endif
   } else if (analogueTesting || inputTesting || outputTesting || pullupTesting) {
+#if defined(USB_SERIAL)
     USB_SERIAL.println(F("Please disable all other testing first"));
+#endif
   } else {
     String pinLabel = pinNameMap[vpin].pinLabel;
+#if defined(USB_SERIAL)
     USB_SERIAL.print(F("Test move servo or dim LED - vpin|physicalPin|value|profile:"));
     USB_SERIAL.print(vpin);
     USB_SERIAL.print(F("|"));
@@ -146,10 +155,10 @@ void testServo(uint8_t vpin, uint16_t value, uint8_t profile) {
     USB_SERIAL.print(value);
     USB_SERIAL.print(F("|"));
     USB_SERIAL.println(profile);
+#endif
     if (!setupComplete) {
       setupComplete = true;
     }
-    disableWire();
     writeAnalogue(vpin, value, profile);
   }
 }

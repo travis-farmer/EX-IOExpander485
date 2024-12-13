@@ -49,13 +49,17 @@ uint8_t getI2CAddress() {
   if (addressSet) {
     eepromAddress = EEPROM.read(5);
     if(diag) {
+#if defined(USB_SERIAL)
       USB_SERIAL.print(F("I2C address defined in EEPROM: 0x"));
       USB_SERIAL.println(eepromAddress, HEX);
+#endif
     }
     return eepromAddress;
   } else {
     if(diag) {
+#if defined(USB_SERIAL)
       USB_SERIAL.println(F("I2C address not defined in EEPROM"));
+#endif
     }
     return 0;
   }
@@ -69,9 +73,11 @@ void writeI2CAddress(int16_t eepromAddress) {
   for (uint8_t i = 0; i < 5; i++) {
     EEPROM.write(i, eepromData[i]);
   }
+#if defined(USB_SERIAL)
   USB_SERIAL.print(F("Saving address 0x"));
   USB_SERIAL.print(eepromAddress, HEX);
   USB_SERIAL.println(F(" to EEPROM, reboot to activate"));
+#endif
   EEPROM.write(5, eepromAddress);
 }
 
@@ -82,22 +88,30 @@ void eraseI2CAddress() {
   for (uint8_t i = 0; i < 6; i++) {
     EEPROM.write(i, 0);
   }
+#if defined(USB_SERIAL)
   USB_SERIAL.println(F("Erased EEPROM, reboot to revert to myConfig.h"));
+#endif
 }
 
 #else
 // Placeholders for no EEPROM support
 uint8_t getI2CAddress() {
+#if defined(USB_SERIAL)
   USB_SERIAL.println(F("No EEPROM support, use myConfig.h"));
+#endif
   return 0;
 }
 
 void writeI2CAddress(int16_t notRequired) {
+#if defined(USB_SERIAL)
   USB_SERIAL.println(F("No EEPROM support, use myConfig.h"));
+#endif
 }
 
 void eraseI2CAddress() {
+#if defined(USB_SERIAL)
   USB_SERIAL.println(F("No EEPROM support, use myConfig.h"));
+#endif
 }
 
 #endif

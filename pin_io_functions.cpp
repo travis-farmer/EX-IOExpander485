@@ -29,19 +29,28 @@ byte* digitalPinStates;   // Store digital pin states to send to device driver
 byte* analoguePinStates;  // Store analogue pin states to send to device driver
 unsigned long lastOutputTest = 0; // Delay for output testing
 
+bool chckPinConflicks(uint8_t pin) {
+  if (pinMap[pin].physicalPin == PIN_CONFLICTS[0]) return true;
+  if (pinMap[pin].physicalPin == PIN_CONFLICTS[1]) return true;
+  if (pinMap[pin].physicalPin == RS485_DEPIN) return true;
+  return false;
+}
+
 /*
 * Get the count of analogue and PWM capable pins
 */
 void setupPinDetails() {
   for (uint8_t pin = 0; pin < numPins; pin++) {
-    if (bitRead(pinMap[pin].capability, ANALOGUE_INPUT)) {
-      numAnaloguePins++;
-    }
-    if (bitRead(pinMap[pin].capability, DIGITAL_INPUT) || bitRead(pinMap[pin].capability, DIGITAL_OUTPUT)) {
-      numDigitalPins++;
-    }
-    if (bitRead(pinMap[pin].capability, PWM_OUTPUT)) {
-      numPWMPins++;
+    if (!chckPinConflicks(pin)) {
+      if (bitRead(pinMap[pin].capability, ANALOGUE_INPUT)) {
+        numAnaloguePins++;
+      }
+      if (bitRead(pinMap[pin].capability, DIGITAL_INPUT) || bitRead(pinMap[pin].capability, DIGITAL_OUTPUT)) {
+        numDigitalPins++;
+      }
+      if (bitRead(pinMap[pin].capability, PWM_OUTPUT)) {
+        numPWMPins++;
+      }
     }
   }
   analoguePinBytes = numAnaloguePins * 2;
@@ -61,16 +70,18 @@ void initialisePins() {
       servoMap[exioPins[pin].servoIndex].detach();
     }
 #endif
-    if (bitRead(pinMap[pin].capability, DIGITAL_INPUT) || bitRead(pinMap[pin].capability, ANALOGUE_INPUT)) {
-      pinMode(pinMap[pin].physicalPin, INPUT);
-      exioPins[pin].direction = 1;
-    } else {
-      exioPins[pin].direction = 0;
+    if (!chckPinConflicks(pin)) {
+      if (bitRead(pinMap[pin].capability, DIGITAL_INPUT) || bitRead(pinMap[pin].capability, ANALOGUE_INPUT)) {
+        pinMode(pinMap[pin].physicalPin, INPUT);
+        exioPins[pin].direction = 1;
+      } else {
+        exioPins[pin].direction = 0;
+      }
+      exioPins[pin].enable = 0;
+      exioPins[pin].mode = 0;
+      exioPins[pin].pullup = 0;
+      exioPins[pin].servoIndex = 255;
     }
-    exioPins[pin].enable = 0;
-    exioPins[pin].mode = 0;
-    exioPins[pin].pullup = 0;
-    exioPins[pin].servoIndex = 255;
   }
   for (uint8_t dPinByte = 0; dPinByte < digitalPinBytes; dPinByte++) {
     digitalPinStates[dPinByte] = 0;
@@ -90,16 +101,20 @@ void initialisePins() {
 * Function to enable pins as digital input pins to start reading
 */
 bool enableDigitalInput(uint8_t pin, bool pullup) {
-  if (!bitRead(pinMap[pin].capability, DI)) {
+  if (!bitRead(pinMap[pin].capability, DI) || chckPinConflicks(pin)) {
+#if defined(USB_SERIAL)
     USB_SERIAL.print(F("ERROR! pin "));
     USB_SERIAL.print(pinMap[pin].physicalPin);
     USB_SERIAL.println(F(" not capable of digital input"));
+#endif
     return false;
   }
   if (exioPins[pin].enable && exioPins[pin].mode != MODE_DIGITAL && !exioPins[pin].direction) {
+#if defined(USB_SERIAL)
     USB_SERIAL.print(F("ERROR! pin "));
     USB_SERIAL.print(pinMap[pin].physicalPin);
     USB_SERIAL.println(F(" already in use, cannot use as a digital input pin"));
+#endif
     return false;
   }
   if (!exioPins[pin].enable || (exioPins[pin].enable && exioPins[pin].direction == 1)) {
@@ -114,9 +129,11 @@ bool enableDigitalInput(uint8_t pin, bool pullup) {
     }
     return true;
   } else {
+  #if defined(USB_SERIAL)
     USB_SERIAL.print(F("ERROR! pin "));
     USB_SERIAL.print(pinMap[pin].physicalPin);
     USB_SERIAL.println(F(" already in use, cannot use as a digital input pin"));
+  #endif
     return false;
   }
 }
@@ -128,10 +145,12 @@ bool writeDigitalOutput(uint8_t pin, bool state) {
   uint8_t pinByte = pin / 8;
   uint8_t pinBit = pin - pinByte * 8;
   if (bitRead(pinMap[pin].capability, DIGITAL_OUTPUT)) {
-    if (exioPins[pin].enable && (exioPins[pin].direction || exioPins[pin].mode != MODE_DIGITAL)) {
+    if (exioPins[pin].enable && (exioPins[pin].direction || exioPins[pin].mode != MODE_DIGITAL) || chckPinConflicks(pin)) {
+#if defined(USB_SERIAL)
       USB_SERIAL.print(F("ERROR! pin "));
       USB_SERIAL.print(pinMap[pin].physicalPin);
       USB_SERIAL.println(F(" already in use, cannot use as a digital output pin"));
+#endif
       return false;
     }
     if (!exioPins[pin].enable || (exioPins[pin].enable && exioPins[pin].direction == 0)) {
@@ -150,9 +169,11 @@ bool writeDigitalOutput(uint8_t pin, bool state) {
       return false;
     }
   } else {
+#if defined(USB_SERIAL)
     USB_SERIAL.print(F("ERROR! Pin "));
     USB_SERIAL.print(pinMap[pin].physicalPin);
     USB_SERIAL.println(F(" not capable of digital output"));
+#endif
     return false;
   }
 }
@@ -162,10 +183,12 @@ bool writeDigitalOutput(uint8_t pin, bool state) {
 */
 bool enableAnalogue(uint8_t pin) {
   if (bitRead(pinMap[pin].capability, ANALOGUE_INPUT)) {
-    if (exioPins[pin].enable && exioPins[pin].mode != MODE_ANALOGUE && !exioPins[pin].direction) {
+    if ((exioPins[pin].enable && exioPins[pin].mode != MODE_ANALOGUE && !exioPins[pin].direction) || chckPinConflicks(pin)) {
+#if defined(USB_SERIAL)
       USB_SERIAL.print(F("ERROR! pin "));
       USB_SERIAL.print(pinMap[pin].physicalPin);
       USB_SERIAL.println(F(" already in use, cannot use as an analogue input pin"));
+#endif
       return false;
     }
     exioPins[pin].enable = 1;
@@ -174,9 +197,11 @@ bool enableAnalogue(uint8_t pin) {
     pinMode(pinMap[pin].physicalPin, INPUT);
     return true;
   } else {
+#if defined(USB_SERIAL)
     USB_SERIAL.print(F("ERROR! Pin "));
     USB_SERIAL.print(pinMap[pin].physicalPin);
     USB_SERIAL.println(F(" not capable of analogue input"));
+#endif
     return false;
   }
 }
@@ -192,11 +217,13 @@ bool writeAnalogue(uint8_t pin, uint16_t value, uint8_t profile, uint16_t durati
   bool useSuperPin = bitRead(profile, 7); // if bit 7 is set, we're using FADE, therefore use SuperPin
   if (((useServoLib || useSuperPin) && bitRead(pinMap[pin].capability, DIGITAL_OUTPUT)) ||
       bitRead(pinMap[pin].capability, PWM_OUTPUT)) {
-    if (exioPins[pin].enable && (exioPins[pin].direction ||
-        (exioPins[pin].mode != MODE_PWM && exioPins[pin].mode != MODE_PWM_LED))) {
+    if ((exioPins[pin].enable && (exioPins[pin].direction ||
+        (exioPins[pin].mode != MODE_PWM && exioPins[pin].mode != MODE_PWM_LED))) || chckPinConflicks(pin)) {
+#if defined(USB_SERIAL)
       USB_SERIAL.print(F("ERROR! pin "));
       USB_SERIAL.print(pinMap[pin].physicalPin);
       USB_SERIAL.println(F(" already in use, cannot use as a PWM output pin"));
+#endif
       return false;
     } else {
       if (useServoLib || useSuperPin) {
@@ -244,9 +271,11 @@ bool writeAnalogue(uint8_t pin, uint16_t value, uint8_t profile, uint16_t durati
       return true;
     }
   } else {
+#if defined(USB_SERIAL)
     USB_SERIAL.print(F("ERROR! Pin "));
     USB_SERIAL.print(pinNameMap[pin].pinLabel);
     USB_SERIAL.println(F(" not capable of PWM output"));
+#endif
     return false;
   }
 }
@@ -255,7 +284,7 @@ void processInputs() {
   for (uint8_t pin = 0; pin < numPins; pin++) {
     uint8_t pinByte = pin / 8;
     uint8_t pinBit = pin - pinByte * 8;
-    if (exioPins[pin].enable && exioPins[pin].direction) {
+    if (exioPins[pin].enable && exioPins[pin].direction && !chckPinConflicks(pin)) {
       switch(exioPins[pin].mode) {
         case MODE_DIGITAL: {
           bool pullup = exioPins[pin].pullup;
@@ -297,7 +326,7 @@ bool processOutputTest(bool testState) {
       for (uint8_t pin = 0; pin < numPins; pin++) {
         uint8_t pinByte = pin / 8;
         uint8_t pinBit = pin - pinByte * 8;
-        if (bitRead(pinMap[pin].capability, DIGITAL_OUTPUT)) {
+        if (bitRead(pinMap[pin].capability, DIGITAL_OUTPUT) && !chckPinConflicks(pin)) {
           pinMode(pinMap[pin].physicalPin, OUTPUT);
           digitalWrite(pinMap[pin].physicalPin, testState);
           if (testState) {
