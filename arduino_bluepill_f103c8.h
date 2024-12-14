@@ -38,6 +38,8 @@ pinName pinNameMap[TOTAL_PINS] = {
   {PA10,"PA10"},{PA9,"PA9"},{PA8,"PA8"},{PB15,"PB15"},{PB14,"PB14"},{PB13,"PB13"},{PB12,"PB12"},
 };
 
+//HardwareSerial Serial1(PA10, PA9);
+
 /*
 Pins not available for use:
 PA11|PA12 (USB)

@@ -39,6 +39,8 @@ pinName pinNameMap[TOTAL_PINS] = {
   {PC8,"PC8"},{PC6,"PC6"},{PC5,"PC5"},{PA12,"PA12"},{PA11,"PA11"},{PB12,"PB12"},{PB2,"PB2"},{PB1,"PB1"},{PB15,"PB15"},{PB14,"PB14"},{PB13,"PB13"},{PC4,"PC4"},  // CN10 outer pins
 };
 
+HardwareSerial Serial1(PB7, PA15);  // Rx=PB7, Tx=PA15 -- CN7 pins 22 and 21 - F411RE
+
 /*
 Pins not available for use:
 CN7 (digital) - PA13|14 (debugger),PH0|1 (clock), PC13|14 (used by oscillator)

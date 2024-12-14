@@ -46,6 +46,8 @@ pinName pinNameMap[TOTAL_PINS] = {
   {PF10,"PF10"},{PE7,"PE7"},{PD14,"PD14"},{PD15,"PD15"},{PF14,"PF14"},{PE9,"PE9"},{PE11,"PE11"},{PF3,"PF3"},{PF15,"PF15"},{PF11,"PF11"},{PE0,"PE0"},{PG8,"PG8"},{PG5,"PG5"},  // CN12 outer pins
 };
 
+HardwareSerial Serial3(PB11, PB10);
+
 /*
 Pins not available for use:
 CN11 (digital) - PD_9|8 (serial),PH_0|1 (clock),PA_13|14,PC_14|15, PH_2 (N/C)

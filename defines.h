@@ -72,18 +72,18 @@
 #define RS485_SERIAL Serial1
 #define USB_SERIAL Serial
 #define RS485_DEPIN 2
-#define RS485_CONFLICT_RX 0 // TODO: set RS485_SERIAL pin conflicts
-#define RS485_CONFLICT_TX 0 // TODO: set RS485_SERIAL pin conflicts
+#define RS485_CONFLICT_RX PB7 // TODO: set RS485_SERIAL pin conflicts
+#define RS485_CONFLICT_TX PA15 // TODO: set RS485_SERIAL pin conflicts
 #elif defined(ARDUINO_NUCLEO_F412ZG)
 #define BOARD_TYPE F("Nucleo-F412ZG")
 #define TOTAL_PINS 97
 #define NUM_PWM_PINS 40
 #define MAX_SUPERPINS 97
-#define RS485_SERIAL Serial1
+#define RS485_SERIAL Serial3
 #define USB_SERIAL Serial
 #define RS485_DEPIN 2
-#define RS485_CONFLICT_RX 0 // TODO: set RS485_SERIAL pin conflicts
-#define RS485_CONFLICT_TX 0 // TODO: set RS485_SERIAL pin conflicts
+#define RS485_CONFLICT_RX PB11 // TODO: set RS485_SERIAL pin conflicts
+#define RS485_CONFLICT_TX PB10 // TODO: set RS485_SERIAL pin conflicts
 #elif defined(ARDUINO_ARCH_SAMD)
 #define BOARD_TYPE F("Arduino Zero or Clone")
 #define TOTAL_PINS 27
@@ -93,7 +93,7 @@
 #define USB_SERIAL SerialUSB
 #define RS485_DEPIN 2
 #define RS485_CONFLICT_RX 0 // TODO: set RS485_SERIAL pin conflicts
-#define RS485_CONFLICT_TX 0 // TODO: set RS485_SERIAL pin conflicts
+#define RS485_CONFLICT_TX 1 // TODO: set RS485_SERIAL pin conflicts
 #elif defined(ARDUINO_BLUEPILL_F103C8)
 #define BOARD_TYPE F("BLUEPILL-STM32F103C8")
 #define TOTAL_PINS 28
@@ -102,8 +102,8 @@
 #define RS485_SERIAL Serial1
 #define USB_SERIAL Serial
 #define RS485_DEPIN 2
-#define RS485_CONFLICT_RX 0 // TODO: set RS485_SERIAL pin conflicts
-#define RS485_CONFLICT_TX 0 // TODO: set RS485_SERIAL pin conflicts
+#define RS485_CONFLICT_RX PA10 // TODO: set RS485_SERIAL pin conflicts
+#define RS485_CONFLICT_TX PA9 // TODO: set RS485_SERIAL pin conflicts
 #else
 #define CPU_TYPE_ERROR
 #endif
