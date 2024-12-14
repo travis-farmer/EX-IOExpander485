@@ -31,7 +31,9 @@ uint8_t outboundFlag;   // Used to determine what data to send back to the Comma
 byte commandBuffer[3];    // Command buffer to interact with device driver
 byte responseBuffer[1];   // Buffer to send single response back to device driver
 uint8_t numReceivedPins = 0;
-
+int rxBufferLen = 0;
+bool rxEnd = false;
+byte rxTerm[] = {0xFE};
 void updateCrc(uint8_t *buf, uint16_t len) {
   uint16_t crc = calculateCrc(buf, len);
   buf[len] = lowByte(crc);
@@ -58,35 +60,49 @@ uint16_t calculateCrc(uint8_t *buf, uint16_t len) {
   return value;
 }
 
+void fixResponceBuffer(uint8_t *inBuf, uint8_t *outBuf) {
+  for (uint8_t i = 0; i < sizeof(inBuf); i++) {
+    outBuf[i+1] = inBuf[i];
+  }
+  outBuf[0] = 0xFD;
+}
+
 /*
 * Function triggered when CommandStation is sending data to this device.
 */
 void receiveEvent() {
   byte buffer[25];
-  if (!RS485_SERIAL.available()) {
-    return;
+  //unsigned long startMicros = micros();
+  RS485_SERIAL.setTimeout(500);
+  if (RS485_SERIAL.available()) {
+    rxBufferLen = RS485_SERIAL.readBytesUntil(0xFE, buffer, 25);
   }
-  uint16_t len = 0;
-  unsigned long startMicros = micros();
-  do {
-    if (RS485_SERIAL.available()) {
-      startMicros = micros();
-      buffer[len] = RS485_SERIAL.read();
-      len++;
-    }
-  } while (micros() - startMicros <= 500 && len < 256);
-  if (!crcGood(responseBuffer,sizeof(responseBuffer)-2)) return;
-  int numBytes = len-2;
-  if (buffer[0] == 0xFF) return; // other nodes sending to master
-  if (buffer[1] != RS485_NODE) return; // not for us
-  for (int i = 2; i < numBytes-1; i++) buffer[i-1] = buffer[i]; // reorder buffer[]
-  switch(buffer[0]) {
+  for (int i = 0; i < rxBufferLen; i++) {
+    USB_SERIAL.print(buffer[i], HEX);
+    USB_SERIAL.print("|");
+  }
+  USB_SERIAL.println("");
+  if (buffer[0] == 0xFD) return; // other nodes sending to master
+  //if (!crcGood(buffer,rxBufferLen-5)) return;
+  
+
+  if (buffer[0] != RS485_NODE) return; // not for us
+  else USB_SERIAL.println("for us");
+  for (int i = 1; i < rxBufferLen-2; i++) buffer[i-1] = buffer[i]; // reorder buffer[]
+  int numBytes = rxBufferLen-4;
+  USB_SERIAL.println(numBytes);
+  for (int i = 0; i < numBytes; i++) {
+    USB_SERIAL.print(buffer[i], HEX);
+    USB_SERIAL.print(":");
+  }
+  USB_SERIAL.println("");
+  rxBufferLen = 0;
+  switch(buffer[1]) {
     // Initial configuration start, must be 2 bytes
     case EXIOINIT:
-      if (numBytes == 4) {
         initialisePins();
-        numReceivedPins = buffer[1];
-        firstVpin = (buffer[3] << 8) + buffer[2];
+        numReceivedPins = buffer[2];
+        firstVpin = (buffer[4] << 8) + buffer[3];
         if (numReceivedPins == numPins) {
           displayEventFlag = 0;
           setupComplete = true;
@@ -96,96 +112,73 @@ void receiveEvent() {
         }
         outboundFlag = EXIOINIT;
         displayEvent = EXIOINIT;
-      } else {
-        displayEventFlag = 2;
-      }
+        requestEvent();
       break;
     case EXIOINITA:
-      if (numBytes == 1) {
         outboundFlag = EXIOINITA;
-      } else {
-        displayEvent = EXIOINITA;
-      }
+      requestEvent();
       break;
     // Flag to set digital pin pullups, 0 disabled, 1 enabled
     case EXIODPUP:
       outboundFlag = EXIODPUP;
-      if (numBytes == 3) {
-        uint8_t pin = buffer[1];
-        bool pullup = buffer[2];
+        uint8_t pin = buffer[2];
+        bool pullup = buffer[3];
         bool response = enableDigitalInput(pin, pullup);
         if (response) {
           responseBuffer[0] = EXIORDY;
         } else {
           responseBuffer[0] = EXIOERR;
         }
-      } else {
-        displayEvent = EXIODPUP;
-        responseBuffer[0] = EXIOERR;
-      }
+      requestEvent();
       break;
     case EXIORDAN:
-      if (numBytes == 1) {
         outboundFlag = EXIORDAN;
-      }
+      requestEvent();
       break;
     case EXIOWRD:
       outboundFlag = EXIOWRD;
-      if (numBytes == 3) {
-        uint8_t pin = buffer[1];
-        bool state = buffer[2];
-        bool response = writeDigitalOutput(pin, state);
+        pin = buffer[2];
+        bool state = buffer[3];
+        response = writeDigitalOutput(pin, state);
         if (response) {
           responseBuffer[0] = EXIORDY;
         } else {
           responseBuffer[0] = EXIOERR;
         }
-      } else {
-        displayEvent = EXIOWRD;
-        responseBuffer[0] = EXIOERR;        
-      }
+      requestEvent();
       break;
     case EXIORDD:
-      if (numBytes == 1) {
         outboundFlag = EXIORDD;
-      }
+      requestEvent();
       break;
     case EXIOVER:
-      if (numBytes == 1) {
         outboundFlag = EXIOVER;
-      }
+      requestEvent();
       break;
     case EXIOENAN:
       outboundFlag = EXIOENAN;
-      if (numBytes == 2) {
-        uint8_t pin = buffer[1];
-        bool response = enableAnalogue(pin);
+        pin = buffer[2];
+        response = enableAnalogue(pin);
         if (response) {
           responseBuffer[0] = EXIORDY;
         } else {
           responseBuffer[0] = EXIOERR;
         }
-      } else {
-        responseBuffer[0] = EXIOERR;
-      }
+      requestEvent();
       break;
     case EXIOWRAN:
       outboundFlag = EXIOWRAN;
-      if (numBytes == 7) {
-        uint8_t pin = buffer[1];
-        uint16_t value = (buffer[3] << 8) + buffer[2];
-        uint8_t profile = buffer[4];
-        uint16_t duration = (buffer[6] << 8) + buffer[5];
-        bool response = writeAnalogue(pin, value, profile, duration);
+        pin = buffer[2];
+        uint16_t value = (buffer[4] << 8) + buffer[3];
+        uint8_t profile = buffer[5];
+        uint16_t duration = (buffer[7] << 8) + buffer[6];
+        response = writeAnalogue(pin, value, profile, duration);
         if (response) {
           responseBuffer[0] = EXIORDY;
         } else {
           responseBuffer[0] = EXIOERR;
         }
-      } else {
-        displayEvent = EXIOWRAN;
-        responseBuffer[0] = EXIOERR;
-      }
+      requestEvent();
       break;
     default:
       break;
@@ -195,7 +188,7 @@ void receiveEvent() {
 void addMasterFlag(uint8_t *buf) {
   //streach buffer and add master flag
   for (int i = sizeof(buf)-2; i > 0; i--) buf[i] = buf[i-1];
-  buf[0] = 0xFF;
+  buf[0] = 0xFD;
 }
 
 /*
@@ -221,6 +214,7 @@ void requestEvent() {
       updateCrc(newBufferA, sizeof(newBufferA)-2);
       digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(commandBuffer, sizeof(commandBuffer));
+      RS485_SERIAL.write(rxTerm,1);
       RS485_SERIAL.flush();
       digitalWrite(RS485_DEPIN, LOW);
       break;
@@ -233,6 +227,7 @@ void requestEvent() {
       updateCrc(newBufferB, sizeof(newBufferB)-2);
       digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(analoguePinMap, numAnaloguePins+2);
+      RS485_SERIAL.write(rxTerm,1);
       RS485_SERIAL.flush();
       digitalWrite(RS485_DEPIN, LOW);
       break;
@@ -245,6 +240,7 @@ void requestEvent() {
       updateCrc(newBufferC, sizeof(newBufferC)-2);
       digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(analoguePinStates, analoguePinBytes+2);
+      RS485_SERIAL.write(rxTerm,1);
       RS485_SERIAL.flush();
       digitalWrite(RS485_DEPIN, LOW);
       break;
@@ -257,6 +253,7 @@ void requestEvent() {
       updateCrc(newBufferD, sizeof(newBufferD)-2);
       digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(digitalPinStates, digitalPinBytes+2);
+      RS485_SERIAL.write(rxTerm,1);
       RS485_SERIAL.flush();
       digitalWrite(RS485_DEPIN, LOW);
       break;
@@ -268,6 +265,7 @@ void requestEvent() {
       updateCrc(newBufferE, sizeof(newBufferE)-2);
       digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(versionBuffer, sizeof(newBufferE));
+      RS485_SERIAL.write(rxTerm,1);
       RS485_SERIAL.flush();
       digitalWrite(RS485_DEPIN, LOW);
       break;
@@ -277,9 +275,12 @@ void requestEvent() {
       memcpy(newBufferF, responseBuffer, sizeof(responseBuffer));
       calloc(*newBufferF, sizeof(newBufferA)+1);
       addMasterFlag(newBufferF);
-      updateCrc(newBufferF, sizeof(newBufferF)-2);
+      uint8_t tmpRespBufF[sizeof(newBufferF+1)];
+      fixResponceBuffer(newBufferF, tmpRespBufF);
+      updateCrc(tmpRespBufF, sizeof(tmpRespBufF)-2);
       digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(responseBuffer, sizeof(newBufferF));
+      RS485_SERIAL.write(rxTerm,1);
       RS485_SERIAL.flush();
       digitalWrite(RS485_DEPIN, LOW);
       break;
@@ -289,9 +290,12 @@ void requestEvent() {
       memcpy(newBufferG, responseBuffer, sizeof(responseBuffer));
       calloc(*newBufferG, sizeof(newBufferA)+1);
       addMasterFlag(newBufferG);
-      updateCrc(newBufferG, sizeof(newBufferG)-2);
+      uint8_t tmpRespBufG[sizeof(newBufferG+1)];
+      fixResponceBuffer(newBufferG, tmpRespBufG);
+      updateCrc(tmpRespBufG, sizeof(tmpRespBufG)-2);
       digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(responseBuffer, sizeof(newBufferG));
+      RS485_SERIAL.write(rxTerm,1);
       RS485_SERIAL.flush();
       digitalWrite(RS485_DEPIN, LOW);
       break;
@@ -301,9 +305,12 @@ void requestEvent() {
       memcpy(newBufferH, responseBuffer, sizeof(responseBuffer));
       calloc(*newBufferH, sizeof(newBufferA)+1);
       addMasterFlag(newBufferH);
-      updateCrc(newBufferH, sizeof(newBufferH)-2);
+      uint8_t tmpRespBufH[sizeof(newBufferH+1)];
+      fixResponceBuffer(newBufferH, tmpRespBufH);
+      updateCrc(tmpRespBufH, sizeof(tmpRespBufH)-2);
       digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(responseBuffer, sizeof(newBufferH));
+      RS485_SERIAL.write(rxTerm,1);
       RS485_SERIAL.flush();
       digitalWrite(RS485_DEPIN, LOW);
       break;
@@ -313,15 +320,19 @@ void requestEvent() {
       memcpy(newBufferI, responseBuffer, sizeof(responseBuffer));
       calloc(*newBufferI, sizeof(newBufferA)+1);
       addMasterFlag(newBufferI);
-      updateCrc(newBufferI, sizeof(newBufferI)-2);
+      uint8_t tmpRespBufI[sizeof(newBufferI+1)];
+      fixResponceBuffer(newBufferI, tmpRespBufI);
+      updateCrc(tmpRespBufI, sizeof(tmpRespBufI)-2);
       digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(responseBuffer, sizeof(newBufferI));
+      RS485_SERIAL.write(rxTerm,1);
       RS485_SERIAL.flush();
       digitalWrite(RS485_DEPIN, LOW);
       break;
     default:
       break;
   }
+  outboundFlag = 0;
 }
 
 void disableWire() {

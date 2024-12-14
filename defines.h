@@ -59,11 +59,11 @@
 #define MAX_SUPERPINS 62
 #define HAS_EEPROM
 #define USE_FAST_WRITES
-#define RS485_SERIAL Serial1 // stay at Serial1 to avoid pin conflicts
+#define RS485_SERIAL Serial2 // stay at Serial1 to avoid pin conflicts
 #define USB_SERIAL Serial
 #define RS485_DEPIN 2
-#define RS485_CONFLICT_RX 19
-#define RS485_CONFLICT_TX 18
+#define RS485_CONFLICT_RX 16
+#define RS485_CONFLICT_TX 17
 #elif defined(ARDUINO_NUCLEO_F411RE)
 #define BOARD_TYPE F("Nucleo-F411RE")
 #define TOTAL_PINS 40

@@ -86,7 +86,8 @@ void setup() {
 #endif
   pinMode(RS485_DEPIN,OUTPUT);
   digitalWrite(RS485_DEPIN,LOW);
-  RS485_SERIAL.begin(115200);
+  RS485_SERIAL.begin(115200, SERIAL_8N1);
+
 #if defined(USB_SERIAL)
   USB_SERIAL.begin(115200);
   USB_SERIAL.print(F("DCC-EX EX-IOExpander485 v"));
@@ -122,15 +123,20 @@ void setup() {
       analoguePin++;
     }            
   }
+
 }
 
 /*
 * Main loop here, just processes our inputs and updates the writeBuffer.
 */
 void loop() {
-  if (setupComplete) {
-    requestEvent();
+  if (RS485_SERIAL.available()) {
+    //USB_SERIAL.println("rx serial");
     receiveEvent();
+  }
+  if (setupComplete) {
+    
+    
     processInputs();
     outputTestState = processOutputTest(outputTestState);
     processServos();

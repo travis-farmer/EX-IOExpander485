@@ -31,4 +31,5 @@ void receiveEvent();
 void requestEvent();
 void disableWire();
 void addMasterFlag(uint8_t *buf);
+void fixResponceBuffer(uint8_t *inBuf, uint8_t *outBuf);
 #endif

@@ -36,14 +36,16 @@ uint8_t displayEventFlag = 0;
 */
 void setVersion() {
   const String versionString = VERSION;
-  char versionArray[versionString.length() + 1];
+  char versionArray[versionString.length() + 1+2];
   versionString.toCharArray(versionArray, versionString.length() + 1);
   version = strtok(versionArray, "."); // Split version on .
-  versionBuffer[0] = atoi(version);  // Major first
+  versionBuffer[2] = atoi(version);  // Major first
   version = strtok(NULL, ".");
-  versionBuffer[1] = atoi(version);  // Minor next
+  versionBuffer[3] = atoi(version);  // Minor next
   version = strtok(NULL, ".");
-  versionBuffer[2] = atoi(version);  // Patch last
+  versionBuffer[4] = atoi(version);  // Patch last
+  versionBuffer[0] = 0xFD;
+  versionBuffer[1] = EXIOVER;
 }
 
 /*
