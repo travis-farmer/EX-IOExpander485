@@ -30,8 +30,8 @@ byte* analoguePinStates;  // Store analogue pin states to send to device driver
 unsigned long lastOutputTest = 0; // Delay for output testing
 
 bool chckPinConflicks(uint8_t pin) {
-  if (pinMap[pin].physicalPin == PIN_CONFLICTS[0]) return true;
-  if (pinMap[pin].physicalPin == PIN_CONFLICTS[1]) return true;
+  if (pinMap[pin].physicalPin == RS485_CONFLICT_RX) return true;
+  if (pinMap[pin].physicalPin == RS485_CONFLICT_TX) return true;
   if (pinMap[pin].physicalPin == RS485_DEPIN) return true;
   return false;
 }
@@ -145,7 +145,7 @@ bool writeDigitalOutput(uint8_t pin, bool state) {
   uint8_t pinByte = pin / 8;
   uint8_t pinBit = pin - pinByte * 8;
   if (bitRead(pinMap[pin].capability, DIGITAL_OUTPUT)) {
-    if (exioPins[pin].enable && (exioPins[pin].direction || exioPins[pin].mode != MODE_DIGITAL) || chckPinConflicks(pin)) {
+    if ((exioPins[pin].enable && (exioPins[pin].direction) || exioPins[pin].mode != MODE_DIGITAL) || chckPinConflicks(pin)) {
 #if defined(USB_SERIAL)
       USB_SERIAL.print(F("ERROR! pin "));
       USB_SERIAL.print(pinMap[pin].physicalPin);

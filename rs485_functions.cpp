@@ -63,7 +63,6 @@ uint16_t calculateCrc(uint8_t *buf, uint16_t len) {
 */
 void receiveEvent() {
   byte buffer[25];
-  unsigned long startMillis = millis();
   if (!RS485_SERIAL.available()) {
     return;
   }
@@ -220,10 +219,10 @@ void requestEvent() {
       calloc(*newBufferA, sizeof(newBufferA)+1);
       addMasterFlag(newBufferA);
       updateCrc(newBufferA, sizeof(newBufferA)-2);
-      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
+      digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(commandBuffer, sizeof(commandBuffer));
       RS485_SERIAL.flush();
-      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, LOW);
+      digitalWrite(RS485_DEPIN, LOW);
       break;
     case EXIOINITA:
       uint8_t newBufferB[5];
@@ -232,10 +231,10 @@ void requestEvent() {
       calloc(*newBufferB, sizeof(newBufferA)+1);
       addMasterFlag(newBufferB);
       updateCrc(newBufferB, sizeof(newBufferB)-2);
-      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
+      digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(analoguePinMap, numAnaloguePins+2);
       RS485_SERIAL.flush();
-      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, LOW);
+      digitalWrite(RS485_DEPIN, LOW);
       break;
     case EXIORDAN:
       uint8_t newBufferC[5];
@@ -244,10 +243,10 @@ void requestEvent() {
       calloc(*newBufferC, sizeof(newBufferA)+1);
       addMasterFlag(newBufferC);
       updateCrc(newBufferC, sizeof(newBufferC)-2);
-      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
+      digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(analoguePinStates, analoguePinBytes+2);
       RS485_SERIAL.flush();
-      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, LOW);
+      digitalWrite(RS485_DEPIN, LOW);
       break;
     case EXIORDD:
       uint8_t newBufferD[5];
@@ -256,10 +255,10 @@ void requestEvent() {
       calloc(*newBufferD, sizeof(newBufferA)+1);
       addMasterFlag(newBufferD);
       updateCrc(newBufferD, sizeof(newBufferD)-2);
-      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
+      digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(digitalPinStates, digitalPinBytes+2);
       RS485_SERIAL.flush();
-      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, LOW);
+      digitalWrite(RS485_DEPIN, LOW);
       break;
     case EXIOVER:
       uint8_t newBufferE[5];
@@ -267,10 +266,10 @@ void requestEvent() {
       calloc(*newBufferE, sizeof(newBufferA)+1);
       addMasterFlag(newBufferE);
       updateCrc(newBufferE, sizeof(newBufferE)-2);
-      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
+      digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(versionBuffer, sizeof(newBufferE));
       RS485_SERIAL.flush();
-      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, LOW);
+      digitalWrite(RS485_DEPIN, LOW);
       break;
     case EXIODPUP:
       uint8_t newBufferF[5];
@@ -279,10 +278,10 @@ void requestEvent() {
       calloc(*newBufferF, sizeof(newBufferA)+1);
       addMasterFlag(newBufferF);
       updateCrc(newBufferF, sizeof(newBufferF)-2);
-      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
+      digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(responseBuffer, sizeof(newBufferF));
       RS485_SERIAL.flush();
-      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, LOW);
+      digitalWrite(RS485_DEPIN, LOW);
       break;
     case EXIOENAN:
       uint8_t newBufferG[5];
@@ -291,10 +290,10 @@ void requestEvent() {
       calloc(*newBufferG, sizeof(newBufferA)+1);
       addMasterFlag(newBufferG);
       updateCrc(newBufferG, sizeof(newBufferG)-2);
-      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
+      digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(responseBuffer, sizeof(newBufferG));
       RS485_SERIAL.flush();
-      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, LOW);
+      digitalWrite(RS485_DEPIN, LOW);
       break;
     case EXIOWRAN:
       uint8_t newBufferH[5];
@@ -303,10 +302,10 @@ void requestEvent() {
       calloc(*newBufferH, sizeof(newBufferA)+1);
       addMasterFlag(newBufferH);
       updateCrc(newBufferH, sizeof(newBufferH)-2);
-      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
+      digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(responseBuffer, sizeof(newBufferH));
       RS485_SERIAL.flush();
-      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, LOW);
+      digitalWrite(RS485_DEPIN, LOW);
       break;
     case EXIOWRD:
       uint8_t newBufferI[5];
@@ -315,10 +314,10 @@ void requestEvent() {
       calloc(*newBufferI, sizeof(newBufferA)+1);
       addMasterFlag(newBufferI);
       updateCrc(newBufferI, sizeof(newBufferI)-2);
-      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, HIGH);
+      digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(responseBuffer, sizeof(newBufferI));
       RS485_SERIAL.flush();
-      if (RS485_DEPIN != NULL) digitalWrite(RS485_DEPIN, LOW);
+      digitalWrite(RS485_DEPIN, LOW);
       break;
     default:
       break;

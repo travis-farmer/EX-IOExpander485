@@ -12,8 +12,9 @@
 #define MYCONFIG_H
 
 /////////////////////////////////////////////////////////////////////////////////////
-//  Define I2C address
-//  Default 0x90, can be any valid, available I2C address
+//  Define RS485 Node
+//  Default 1, can be any valid, available node from 0 to 254, but must not be the same
+//  for more than one node.
 // 
 #define RS485_NODE 1
 
@@ -40,10 +41,5 @@
 // #define TEST_MODE INPUT_TEST
 // #define TEST_MODE OUTPUT_TEST
 // #define TEST_MODE PULLUP_TEST
-
-/////////////////////////////////////////////////////////////////////////////////////
-//  Uncomment to disable internal I2C pullup resistors
-//  NOTE: This will not apply to all supported devices, refer to the documentation
-// #define DISABLE_I2C_PULLUPS
 
 #endif

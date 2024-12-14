@@ -34,8 +34,6 @@ pinDefinition pinMap[TOTAL_PINS] = {
   {PF10,DIO},{PE7,DIO},{PD14,DIOP},{PD15,DIOP},{PF14,DIO},{PE9,DIOP},{PE11,DIOP},{PF3,DIO},{PF15,DIO},{PF11,DIO},{PE0,DIO},{PG8,DIO},{PG5,DIO}, // CN12 outer pins
 };
 
-#define I2C_SDA PB9
-#define I2C_SCL PB8
 
 pinName pinNameMap[TOTAL_PINS] = {
   {PC10,"PC10"},{PC12,"PC12"},{PF6,"PF6"},{PF7,"PF7"},{PA15,"PA15"},{PB7,"PB7"},{PC13,"PC13"},{PC2,"PC2"},{PC3,"PC3"},{PD4,"PD4"},{PD5,"PD5"},{PD6,"PD6"},{PD7,"PD7"},{PE3,"PE3"},
@@ -50,7 +48,7 @@ pinName pinNameMap[TOTAL_PINS] = {
 
 /*
 Pins not available for use:
-CN11 (digital) - PB_8|9 (I2C),PD_9|8 (serial),PH_0|1 (clock),PA_13|14,PC_14|15, PH_2 (N/C)
+CN11 (digital) - PD_9|8 (serial),PH_0|1 (clock),PA_13|14,PC_14|15, PH_2 (N/C)
 CN12 (digital) - PA_8|9|10|11|12 (USB OTG),PG_6|7 (USB OTG)
 CN11 (analogue) - 
 CN12 (analogue) - 

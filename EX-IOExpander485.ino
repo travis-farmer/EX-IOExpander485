@@ -84,6 +84,8 @@ void setup() {
 #if defined(ARDUINO_BLUEPILL_F103C8)
   disableJTAG();
 #endif
+  pinMode(RS485_DEPIN,OUTPUT);
+  digitalWrite(RS485_DEPIN,LOW);
   RS485_SERIAL.begin(115200);
 #if defined(USB_SERIAL)
   USB_SERIAL.begin(115200);
@@ -91,8 +93,8 @@ void setup() {
   USB_SERIAL.println(VERSION);
   USB_SERIAL.print(F("Detected device: "));
   USB_SERIAL.println(BOARD_TYPE);
-  USB_SERIAL.print(F("Available at I2C address 0x"));
-  USB_SERIAL.println(i2cAddress, HEX);
+  USB_SERIAL.print(F("Available at RS485 node "));
+  USB_SERIAL.println(RS485_NODE);
 #endif
   setVersion();
   setupPinDetails();

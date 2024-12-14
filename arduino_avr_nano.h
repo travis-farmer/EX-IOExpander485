@@ -28,8 +28,7 @@ pinDefinition pinMap[TOTAL_PINS] = {
   {8,DIO},{9,DIOP},{10,DIOP},{11,DIOP},{12,DIO},{13,DIO},
   {A0,AIDIO},{A1,AIDIO},{A2,AIDIO},{A3,AIDIO},{A6,AI},{A7,AI},
 };
-#define I2C_SDA A4
-#define I2C_SCL A5
+
 
 pinName pinNameMap[TOTAL_PINS] = {
   {2,"D2"},{3,"D3"},{4,"D4"},{5,"D5"},{6,"D6"},{7,"D7"},

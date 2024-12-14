@@ -30,8 +30,7 @@ pinDefinition pinMap[TOTAL_PINS] = {
   {PC8,DIOP},{PC6,DIOP},{PC5,AIDIO},{PA12,DIO},{PA11,DIOP},{PB12,DIO},{PB2,DIO},{PB1,AIDIOP},{PB15,DIOP},{PB14,DIOP},{PB13,DIOP},{PC4,AIDIO}, // CN10 outer pins
 };
 
-#define I2C_SDA PB9
-#define I2C_SCL PB8
+
 
 pinName pinNameMap[TOTAL_PINS] = {
   {PC10,"PC10"},{PC12,"PC12"},{PA15,"PA15"},{PB7,"PB7"},{PC15,"PC15"},{PC2,"PC2"},{PC3,"PC3"},        // CN7 outer pins
@@ -43,7 +42,6 @@ pinName pinNameMap[TOTAL_PINS] = {
 /*
 Pins not available for use:
 CN7 (digital) - PA13|14 (debugger),PH0|1 (clock), PC13|14 (used by oscillator)
-CN10 (digital) - PB8|9 - (I2C)
 CN7 (analogue) - 
 Note that PC13 has a switch (blue button) with pullup, so input-only unless you disconnect SB17
 */

@@ -36,7 +36,7 @@ bool pullupTesting = false;   // Flag that digital input testing with pullups is
 void testAnalogue(bool enable) {
   if (enable) {
 #if defined(USB_SERIAL)
-    USB_SERIAL.println(F("Analogue input testing enabled, I2C connection disabled, diags enabled, reboot once testing complete"));
+    USB_SERIAL.println(F("Analogue input testing enabled, diags enabled, reboot once testing complete"));
 #endif
     setupComplete = true;
     testInput(false);
@@ -61,7 +61,7 @@ void testAnalogue(bool enable) {
 void testInput(bool enable) {
   if (enable) {
   #if defined(USB_SERIAL)
-    USB_SERIAL.println(F("Input testing (no pullups) enabled, I2C connection disabled, diags enabled, reboot once testing complete"));
+    USB_SERIAL.println(F("Input testing (no pullups) enabled, diags enabled, reboot once testing complete"));
   #endif
     setupComplete = true;
     testAnalogue(false);
@@ -87,7 +87,7 @@ void testInput(bool enable) {
 void testOutput(bool enable) {
   if (enable) {
 #if defined(USB_SERIAL)
-    USB_SERIAL.println(F("Output testing enabled, I2C connection disabled, diags enabled, reboot once testing complete"));
+    USB_SERIAL.println(F("Output testing enabled, diags enabled, reboot once testing complete"));
 #endif
     setupComplete = true;
     testAnalogue(false);
@@ -112,7 +112,7 @@ void testOutput(bool enable) {
 void testPullup(bool enable) {
   if (enable) {
 #if defined(USB_SERIAL)
-    USB_SERIAL.println(F("Pullup input testing enabled, I2C connection disabled, diags enabled, reboot once testing complete"));
+    USB_SERIAL.println(F("Pullup input testing enabled, diags enabled, reboot once testing complete"));
 #endif
     setupComplete = true;
     testAnalogue(false);

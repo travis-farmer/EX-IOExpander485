@@ -33,8 +33,6 @@ pinDefinition pinMap[TOTAL_PINS] = {
   {A12,AIDIO},{A13,AIDIO},{A14,AIDIO},{A15,AIDIO},
 };
 
-#define I2C_SDA PA22
-#define I2C_SCL PA23
 
 pinName pinNameMap[TOTAL_PINS] = {
   {2,"D2"},{3,"D3"},{4,"D4"},{5,"D5"},{6,"D6"},{7,"D7"},{8,"D8"},{9,"D9"},{10,"D10"},{11,"D11"},
@@ -52,7 +50,6 @@ pinName pinNameMap[TOTAL_PINS] = {
 // static const uint8_t analoguePinMap[NUMBER_OF_ANALOGUE_PINS] = {
 //   A0, A1, A2, A3, A4, A5
 // };
-// #define I2C_SDA PA22
-// #define I2C_SCL PA23
+
 
 #endif

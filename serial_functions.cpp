@@ -29,7 +29,7 @@ const byte numSerialChars = 20;   // Max number of chars for serial input
 char serialInputChars[numSerialChars];  // Char array for serial input
 
 /*
-* Function to read and process serial input for I2C address config
+* Function to read and process serial input for node config
 */
 void processSerialInput() {
   static bool serialInProgress = false;
@@ -84,12 +84,6 @@ void processSerialInput() {
       case 'D': // Enable/disable diagnostic output
         serialCaseD(parameter);
         break;
-      case 'E': // Erase EEPROM
-        eraseI2CAddress();
-        break;
-      case 'R': // Read address from EEPROM
-        serialCaseR();
-        break;
       case 'T': // Display current state of test modes
         if (parameter == 'A') {
           setAnalogueTesting();
@@ -108,9 +102,6 @@ void processSerialInput() {
       case 'V': // Display Vpin map
         startupDisplay();
         displayVpinMap();
-        break;
-      case 'W': // Write address to EEPROM
-        serialCaseW(parameter);
         break;
       case 'Z': // Software reboot
         reset();
@@ -176,15 +167,6 @@ void setPullupTesting() {
   }
 }
 
-void serialCaseR() {
-  if (getI2CAddress() == 0) {
-    USB_SERIAL.println(F("I2C address not stored, using myConfig.h"));
-  } else {
-    USB_SERIAL.print(F("I2C address stored is 0x"));
-    USB_SERIAL.println(getI2CAddress(), HEX);
-  }
-}
-
 void serialCaseT() {
   if (analogueTesting) {
     USB_SERIAL.println(F("Analogue testing <A> enabled"));
@@ -199,11 +181,4 @@ void serialCaseT() {
   }
 }
 
-void serialCaseW(unsigned long parameter) {
-  if (parameter > 0x07 && parameter < 0x78) {
-    writeI2CAddress(parameter);
-  } else {
-    USB_SERIAL.println(F("Invalid I2C address, must be between 0x08 and 0x77"));
-  }
-}
 #endif
