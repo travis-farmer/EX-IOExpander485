@@ -46,22 +46,10 @@ void receiveEvent() {
     rxBufferLen = RS485_SERIAL.readBytesUntil(rxTerm[0], buffer, 25);
   }
   
-  for (int i = 0; i < rxBufferLen; i++) {
-    USB_SERIAL.print(buffer[i], HEX);
-    USB_SERIAL.print("|");
-  }
-  USB_SERIAL.println("");
   if (buffer[0] != rxStart[0]) return; // bad packet
   if (buffer[1] != RS485_NODE) return; // not for us
-  else USB_SERIAL.println("for us");
-  for (int i = 3; i < rxBufferLen-3; i++) buffer[i-4] = buffer[i]; // reorder buffer[]
+  for (int i = 3; i < rxBufferLen-3; i++) buffer[i-3] = buffer[i]; // reorder buffer[]
   int numBytes = rxBufferLen-4;
-  USB_SERIAL.println(numBytes);
-  for (int i = 0; i < numBytes; i++) {
-    USB_SERIAL.print(buffer[i], HEX);
-    USB_SERIAL.print(":");
-  }
-  USB_SERIAL.println("");
   rxBufferLen = 0;
   switch(buffer[1]) {
     // Initial configuration start, must be 2 bytes
