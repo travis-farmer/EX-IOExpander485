@@ -24,12 +24,6 @@
 #include "globals.h"
 
 extern uint8_t numReceivedPins;
-void updateCrc(uint8_t *buf, uint16_t len);
-bool crcGood(uint8_t *buf, uint16_t len);
-uint16_t calculateCrc(uint8_t *buf, uint16_t len);
 void receiveEvent();
 void requestEvent();
-void disableWire();
-void addMasterFlag(uint8_t *buf);
-void fixResponceBuffer(uint8_t *inBuf, uint8_t *outBuf);
 #endif
