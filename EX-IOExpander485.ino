@@ -84,8 +84,8 @@ void setup() {
 #if defined(ARDUINO_BLUEPILL_F103C8)
   disableJTAG();
 #endif
-  pinMode(RS485_DEPIN,OUTPUT);
-  digitalWrite(RS485_DEPIN,LOW);
+  //pinMode(RS485_DEPIN,OUTPUT);
+  //digitalWrite(RS485_DEPIN,LOW);
   RS485_SERIAL.begin(115200, SERIAL_8N1);
 
 #if defined(USB_SERIAL)
