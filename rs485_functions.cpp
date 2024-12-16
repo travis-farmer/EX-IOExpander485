@@ -22,7 +22,11 @@
 #include "rs485_functions.h"
 #include "display_functions.h"
 #include "pin_io_functions.h"
-
+static const byte PAYLOAD_FALSE = 0;
+static const byte PAYLOAD_NORMAL = 1;
+static const byte PAYLOAD_STRING = 2;
+#define COMMAND_BUFFER_SIZE 25
+byte tmpBuffer[COMMAND_BUFFER_SIZE]; 
 uint8_t numAnaloguePins = 0;  // Init with 0, will be overridden by config
 uint8_t numDigitalPins = 0;   // Init with 0, will be overridden by config
 uint8_t numPWMPins = 0;  // Number of PWM capable pins
@@ -35,19 +39,52 @@ int rxBufferLen = 0;
 bool rxEnd = false;
 byte rxStart[] = {0xFD};
 byte rxTerm[] = {0xFE};
-
+byte bufferLength;
+byte inCommandPayload;
 /*
 * Function triggered when CommandStation is sending data to this device.
 */
 void receiveEvent() {
   byte buffer[25];
   //unsigned long startMicros = micros();
-  if (RS485_SERIAL.available()) {
-    rxBufferLen = RS485_SERIAL.readBytesUntil(rxTerm[0], buffer, 25);
+  while (RS485_SERIAL.available()) {
+    char ch = RS485_SERIAL.read();
+    if (!inCommandPayload) {
+      if (ch == rxStart[0]) {
+        inCommandPayload = PAYLOAD_NORMAL;
+        bufferLength = 0;
+        tmpBuffer[0] = '\0';
+      }
+    } else { // if (inCommandPayload)
+      if (bufferLength <  (24))
+        tmpBuffer[bufferLength++] = ch;
+      if (inCommandPayload > PAYLOAD_NORMAL) {
+        if (inCommandPayload > 22) {    // String way too long
+          inCommandPayload = PAYLOAD_NORMAL;
+          // fall through to ending parsing below
+        } else if (ch == '"') {               // String end
+          inCommandPayload = PAYLOAD_NORMAL;
+          continue; // do not fall through
+        } else
+          inCommandPayload++;
+      }
+      if (inCommandPayload == PAYLOAD_NORMAL) {
+        if (ch == rxTerm[0]) {
+          for (int i = 0; i < bufferLength; i++) {
+            buffer[i] = tmpBuffer[i];
+          } 
+          inCommandPayload = PAYLOAD_FALSE;
+          break;
+        } else if (ch == '"') {
+          inCommandPayload = PAYLOAD_STRING;
+        }
+      }
+    }
   }
   
-  if (buffer[0] != rxStart[0]) return; // bad packet
-  if (buffer[1] != RS485_NODE) return; // not for us
+  if (buffer[1] != RS485_NODE) {
+    RS485_SERIAL.write(buffer,rxBufferLen);
+  }
   for (int i = 3; i < rxBufferLen-3; i++) buffer[i-3] = buffer[i]; // reorder buffer[]
   int numBytes = rxBufferLen-4;
   rxBufferLen = 0;
