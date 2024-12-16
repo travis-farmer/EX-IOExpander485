@@ -33,14 +33,14 @@ uint8_t numPWMPins = 0;  // Number of PWM capable pins
 bool setupComplete = false;   // Flag when initial configuration/setup has been received
 uint8_t outboundFlag;   // Used to determine what data to send back to the CommandStation
 byte commandBuffer[3];    // Command buffer to interact with device driver
-byte responseBuffer[1];   // Buffer to send single response back to device driver
+uint8_t responseBuffer[1];   // Buffer to send single response back to device driver
 uint8_t numReceivedPins = 0;
 int rxBufferLen = 0;
 bool rxEnd = false;
 byte rxStart[] = {0xFD};
 byte rxTerm[] = {0xFE};
 byte bufferLength;
-byte inCommandPayload;
+byte inCommandPayload = PAYLOAD_NORMAL;
 /*
 * Function triggered when CommandStation is sending data to this device.
 */
@@ -53,11 +53,11 @@ void receiveEvent() {
       if (ch == rxStart[0]) {
         inCommandPayload = PAYLOAD_NORMAL;
         bufferLength = 0;
-        tmpBuffer[0] = '\0';
       }
     } else { // if (inCommandPayload)
       if (bufferLength <  (24))
-        tmpBuffer[bufferLength++] = ch;
+        tmpBuffer[bufferLength] = ch;
+        bufferLength++;
       if (inCommandPayload > PAYLOAD_NORMAL) {
         if (inCommandPayload > 22) {    // String way too long
           inCommandPayload = PAYLOAD_NORMAL;
@@ -82,18 +82,19 @@ void receiveEvent() {
     }
   }
   
-  if (buffer[1] != RS485_NODE) {
+  if (buffer[0] != RS485_NODE) {
     RS485_SERIAL.write(buffer,rxBufferLen);
+    //USB_SERIAL.println("not for us");
+    return;
   }
-  for (int i = 3; i < rxBufferLen-3; i++) buffer[i-3] = buffer[i]; // reorder buffer[]
-  int numBytes = rxBufferLen-4;
+  for (int i = 2; i < rxBufferLen-2; i++) buffer[i-2] = buffer[i]; // reorder buffer[]
   rxBufferLen = 0;
-  switch(buffer[1]) {
+  switch(buffer[2]) {
     // Initial configuration start, must be 2 bytes
     case EXIOINIT:
         {initialisePins();
-        numReceivedPins = buffer[2];
-        firstVpin = (buffer[4] << 8) + buffer[3];
+        numReceivedPins = buffer[3];
+        firstVpin = (buffer[4] << 8) + buffer[4];
         if (numReceivedPins == numPins) {
           displayEventFlag = 0;
           setupComplete = true;
@@ -112,8 +113,8 @@ void receiveEvent() {
     // Flag to set digital pin pullups, 0 disabled, 1 enabled
     case EXIODPUP:
       {outboundFlag = EXIODPUP;
-        uint8_t pin = buffer[2];
-        bool pullup = buffer[3];
+        uint8_t pin = buffer[3];
+        bool pullup = buffer[4];
         bool response = enableDigitalInput(pin, pullup);
         if (response) {
           responseBuffer[0] = EXIORDY;
@@ -128,8 +129,8 @@ void receiveEvent() {
       break;}
     case EXIOWRD:
       {outboundFlag = EXIOWRD;
-        uint8_t pin = buffer[2];
-        bool state = buffer[3];
+        uint8_t pin = buffer[3];
+        bool state = buffer[4];
         bool response = writeDigitalOutput(pin, state);
         if (response) {
           responseBuffer[0] = EXIORDY;
@@ -148,7 +149,7 @@ void receiveEvent() {
       break;}
     case EXIOENAN:
       {outboundFlag = EXIOENAN;
-        uint8_t pin = buffer[2];
+        uint8_t pin = buffer[3];
         bool response = enableAnalogue(pin);
         if (response) {
           responseBuffer[0] = EXIORDY;
@@ -159,10 +160,10 @@ void receiveEvent() {
       break;}
     case EXIOWRAN:
       {outboundFlag = EXIOWRAN;
-        uint8_t pin = buffer[2];
-        uint16_t value = (buffer[4] << 8) + buffer[3];
-        uint8_t profile = buffer[5];
-        uint16_t duration = (buffer[7] << 8) + buffer[6];
+        uint8_t pin = buffer[3];
+        uint16_t value = (buffer[5] << 8) + buffer[4];
+        uint8_t profile = buffer[6];
+        uint16_t duration = (buffer[8] << 8) + buffer[7];
         bool response = writeAnalogue(pin, value, profile, duration);
         if (response) {
           responseBuffer[0] = EXIORDY;
@@ -182,102 +183,104 @@ void requestEvent() {
   switch(outboundFlag) {
     case EXIOINIT:
       {if (setupComplete) {
-        commandBuffer[0] = EXIOPINS;
-        commandBuffer[1] = numDigitalPins;
-        commandBuffer[2] = numAnaloguePins;
-      } else {
-        commandBuffer[0] = 0;
+        commandBuffer[0] = rxStart[0];
         commandBuffer[1] = 0;
-        commandBuffer[2] = 0;
+        commandBuffer[2] = RS485_NODE;
+        commandBuffer[3] = EXIOPINS;
+        commandBuffer[4] = numDigitalPins;
+        commandBuffer[5] = numAnaloguePins;
+        commandBuffer[6] = rxTerm[0];
+      } else {
+        commandBuffer[0] = rxStart[0];
+        commandBuffer[1] = 0;
+        commandBuffer[2] = RS485_NODE;
+        commandBuffer[3] = EXIOPINS;
+        commandBuffer[4] = 0;
+        commandBuffer[5] = 0;
+        commandBuffer[6] = rxTerm[0];
       }
       uint8_t tmpHeadA[] = {0, RS485_NODE};
-      //digitalWrite(RS485_DEPIN, HIGH);
-      RS485_SERIAL.write(rxStart,1);
-      RS485_SERIAL.write(tmpHeadA,2);
+      digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(commandBuffer, sizeof(commandBuffer));
-      RS485_SERIAL.write(rxTerm,1);
-      RS485_SERIAL.flush();
-      //digitalWrite(RS485_DEPIN, LOW);
+      //RS485_SERIAL.flush();
+      digitalWrite(RS485_DEPIN, LOW);
+      break;} 
+    case EXIOINITA: {
+      commandBuffer[0] = rxStart[0];
+        commandBuffer[1] = 0;
+        commandBuffer[2] = RS485_NODE;
+        commandBuffer[3] = EXIOINITA;
+        for (int i = 4; i <= numAnaloguePins+4; i++) {
+          if (i < numAnaloguePins+4) commandBuffer[i] = analoguePinMap[i-4];
+          else commandBuffer[i] = rxTerm[0];
+        }
+      digitalWrite(RS485_DEPIN, HIGH);
+      RS485_SERIAL.write(commandBuffer, numAnaloguePins+5);
+      //RS485_SERIAL.flush();
+      digitalWrite(RS485_DEPIN, LOW);
       break;}
-    case EXIOINITA:
-      {uint8_t tmpHeadB[] = {0, RS485_NODE, EXIOINITA};
-      //digitalWrite(RS485_DEPIN, HIGH);
-      RS485_SERIAL.write(rxStart,1);
-      RS485_SERIAL.write(tmpHeadB,3);
-      RS485_SERIAL.write(analoguePinMap, numAnaloguePins);
-      RS485_SERIAL.write(rxTerm,1);
-      RS485_SERIAL.flush();
-      //digitalWrite(RS485_DEPIN, LOW);
-      break;}
-    case EXIORDAN:
-      {uint8_t tmpHeadC[] = {0, RS485_NODE, EXIORDAN};
-      //digitalWrite(RS485_DEPIN, HIGH);
-      RS485_SERIAL.write(rxStart,1);
-      RS485_SERIAL.write(tmpHeadC,3);
-      RS485_SERIAL.write(analoguePinStates, analoguePinBytes);
-      RS485_SERIAL.write(rxTerm,1);
-      RS485_SERIAL.flush();
-      //digitalWrite(RS485_DEPIN, LOW);
+    case EXIORDAN: {
+      commandBuffer[0] = rxStart[0];
+        commandBuffer[1] = 0;
+        commandBuffer[2] = RS485_NODE;
+        commandBuffer[3] = EXIORDAN;
+        for (int i = 4; i <= analoguePinBytes+4; i++) {
+          if (i < analoguePinBytes+4) commandBuffer[i] = analoguePinStates[i-4];
+          else commandBuffer[i] = rxTerm[0];
+        }
+      digitalWrite(RS485_DEPIN, HIGH);
+      RS485_SERIAL.write(commandBuffer, analoguePinBytes+5);
+      //RS485_SERIAL.flush();
+      digitalWrite(RS485_DEPIN, LOW);
       break;}
     case EXIORDD:
-      {uint8_t tmpHeadD[] = {0, RS485_NODE, EXIORDD};
-      //digitalWrite(RS485_DEPIN, HIGH);
-      RS485_SERIAL.write(rxStart,1);
-      RS485_SERIAL.write(tmpHeadD,3);
-      RS485_SERIAL.write(digitalPinStates, digitalPinBytes);
-      RS485_SERIAL.write(rxTerm,1);
-      RS485_SERIAL.flush();
-      //digitalWrite(RS485_DEPIN, LOW);
+      {
+      commandBuffer[0] = rxStart[0];
+        commandBuffer[1] = 0;
+        commandBuffer[2] = RS485_NODE;
+        commandBuffer[3] = EXIORDD;
+        for (int i = 4; i <= digitalPinBytes+4; i++) {
+          if (i < digitalPinBytes+4) commandBuffer[i] = digitalPinStates[i-4];
+          else commandBuffer[i] = rxTerm[0];
+        }
+      digitalWrite(RS485_DEPIN, HIGH);
+      RS485_SERIAL.write(digitalPinStates, digitalPinBytes+5);
+      //RS485_SERIAL.flush();
+      digitalWrite(RS485_DEPIN, LOW);
       break;}
-    case EXIOVER:
-      {uint8_t tmpHeadE[] = {0, RS485_NODE, EXIOVER};
-      //digitalWrite(RS485_DEPIN, HIGH);
-      RS485_SERIAL.write(rxStart,1);
-      RS485_SERIAL.write(tmpHeadE,3);
+    case EXIOVER: {
+      digitalWrite(RS485_DEPIN, HIGH);
       RS485_SERIAL.write(versionBuffer, sizeof(versionBuffer));
-      RS485_SERIAL.write(rxTerm,1);
-      RS485_SERIAL.flush();
-      //digitalWrite(RS485_DEPIN, LOW);
+      //RS485_SERIAL.flush();
+      digitalWrite(RS485_DEPIN, LOW);
       break;}
     case EXIODPUP:
-      {uint8_t tmpHeadF[] = {0, RS485_NODE};
-      //digitalWrite(RS485_DEPIN, HIGH);
-      RS485_SERIAL.write(rxStart,1);
-      RS485_SERIAL.write(tmpHeadF,2);
-      RS485_SERIAL.write(responseBuffer, sizeof(responseBuffer));
-      RS485_SERIAL.write(rxTerm,1);
-      RS485_SERIAL.flush();
-      //digitalWrite(RS485_DEPIN, LOW);
+      {uint8_t tmpHeadF[] = {rxStart[0], 0, RS485_NODE, (uint8_t)responseBuffer, rxTerm[0]};
+      digitalWrite(RS485_DEPIN, HIGH);
+      RS485_SERIAL.write(tmpHeadF,5);
+      //RS485_SERIAL.flush();
+      digitalWrite(RS485_DEPIN, LOW);
       break;}
     case EXIOENAN:
-      {uint8_t tmpHeadG[] = {0, RS485_NODE};
-      //digitalWrite(RS485_DEPIN, HIGH);
-      RS485_SERIAL.write(rxStart,1);
-      RS485_SERIAL.write(tmpHeadG,2);
-      RS485_SERIAL.write(responseBuffer, sizeof(responseBuffer));
-      RS485_SERIAL.write(rxTerm,1);
-      RS485_SERIAL.flush();
-      //digitalWrite(RS485_DEPIN, LOW);
+      {uint8_t tmpHeadG[] = {rxStart[0], 0, RS485_NODE, (uint8_t)responseBuffer, rxTerm[0]};
+      digitalWrite(RS485_DEPIN, HIGH);
+      RS485_SERIAL.write(tmpHeadG,5);
+      //RS485_SERIAL.flush();
+      digitalWrite(RS485_DEPIN, LOW);
       break;}
     case EXIOWRAN:
-      {uint8_t tmpHeadH[] = {0, RS485_NODE};
-      //digitalWrite(RS485_DEPIN, HIGH);
-      RS485_SERIAL.write(rxStart,1);
-      RS485_SERIAL.write(tmpHeadH,2);
-      RS485_SERIAL.write(responseBuffer, sizeof(responseBuffer));
-      RS485_SERIAL.write(rxTerm,1);
-      RS485_SERIAL.flush();
-      //digitalWrite(RS485_DEPIN, LOW);
+      {uint8_t tmpHeadH[] = {rxStart[0], 0, RS485_NODE, (uint8_t)responseBuffer, rxTerm[0]};
+      digitalWrite(RS485_DEPIN, HIGH);
+      RS485_SERIAL.write(tmpHeadH,5);
+      //RS485_SERIAL.flush();
+      digitalWrite(RS485_DEPIN, LOW);
       break;}
     case EXIOWRD:
-      {uint8_t tmpHeadI[] = {0, RS485_NODE};
-      //digitalWrite(RS485_DEPIN, HIGH);
-      RS485_SERIAL.write(rxStart,1);
-      RS485_SERIAL.write(tmpHeadI,2);
-      RS485_SERIAL.write(responseBuffer, sizeof(responseBuffer));
-      RS485_SERIAL.write(rxTerm,1);
-      RS485_SERIAL.flush();
-      //digitalWrite(RS485_DEPIN, LOW);
+      {uint8_t tmpHeadI[] = {rxStart[0], 0, RS485_NODE, (uint8_t)responseBuffer, rxTerm[0]};
+      digitalWrite(RS485_DEPIN, HIGH);
+      RS485_SERIAL.write(tmpHeadI,5);
+      //RS485_SERIAL.flush();
+      digitalWrite(RS485_DEPIN, LOW);
       break;}
   }
   outboundFlag = 0;

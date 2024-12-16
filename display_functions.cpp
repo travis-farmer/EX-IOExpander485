@@ -36,14 +36,19 @@ uint8_t displayEventFlag = 0;
 */
 void setVersion() {
   const String versionString = VERSION;
-  char versionArray[versionString.length() + 1+2];
+  char versionArray[versionString.length() + 1+4];
   versionString.toCharArray(versionArray, versionString.length() + 1);
   version = strtok(versionArray, "."); // Split version on .
-  versionBuffer[0] = atoi(version);  // Major first
+  versionBuffer[0] = 0xFD;
+  versionBuffer[1] = 0;
+  versionBuffer[2] = RS485_NODE;
+  versionBuffer[3] = EXIOVER;
+  versionBuffer[4] = atoi(version);  // Major first
   version = strtok(NULL, ".");
-  versionBuffer[1] = atoi(version);  // Minor next
+  versionBuffer[5] = atoi(version);  // Minor next
   version = strtok(NULL, ".");
-  versionBuffer[2] = atoi(version);  // Patch last
+  versionBuffer[6] = atoi(version);  // Patch last
+  versionBuffer[7] = 0xFE;
 
 }
 
