@@ -39,7 +39,7 @@ extern int analoguePinBytes;
 extern int digitalPinBytes;
 extern byte* digitalPinStates;
 extern byte* analoguePinStates;
-extern uint8_t versionBuffer[3];
+extern byte versionBuffer[3];
 extern unsigned long displayDelay;
 extern uint16_t firstVpin;
 extern bool diag;

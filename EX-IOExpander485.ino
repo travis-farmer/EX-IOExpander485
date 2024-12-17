@@ -86,7 +86,7 @@ void setup() {
 #endif
   pinMode(RS485_DEPIN,OUTPUT);
   digitalWrite(RS485_DEPIN,LOW);
-  RS485_SERIAL.begin(115200, SERIAL_8N1);
+  RS485_SERIAL.begin(9600, SERIAL_8N1);
 
 #if defined(USB_SERIAL)
   USB_SERIAL.begin(115200);
@@ -130,10 +130,10 @@ void setup() {
 * Main loop here, just processes our inputs and updates the writeBuffer.
 */
 void loop() {
-  if (RS485_SERIAL.available()) {
+  //if (RS485_SERIAL.available()) {
     //USB_SERIAL.println("rx serial");
     receiveEvent();
-  }
+  //}
   if (setupComplete) {
     
     
