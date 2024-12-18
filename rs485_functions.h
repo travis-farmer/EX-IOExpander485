@@ -24,6 +24,9 @@
 #include "globals.h"
 
 extern uint8_t numReceivedPins;
+void getCharsRightOfPosition(char* str, int position, char* outStr);
+void getCharsLeft(char *str, int pos, char *result);
+void procRX(char * buffer, int rxBuffLen);
 void receiveEvent();
 void requestEvent();
 #endif

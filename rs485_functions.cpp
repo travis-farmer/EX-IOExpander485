@@ -26,7 +26,7 @@ static const byte PAYLOAD_FALSE = 0;
 static const byte PAYLOAD_NORMAL = 1;
 static const byte PAYLOAD_STRING = 2;
 #define COMMAND_BUFFER_SIZE 25
-byte tmpBuffer[COMMAND_BUFFER_SIZE]; 
+char tmpBuffer[COMMAND_BUFFER_SIZE]; 
 uint8_t numAnaloguePins = 0;  // Init with 0, will be overridden by config
 uint8_t numDigitalPins = 0;   // Init with 0, will be overridden by config
 uint8_t numPWMPins = 0;  // Number of PWM capable pins
@@ -39,98 +39,88 @@ int rxBufferLen = 0;
 bool rxEnd = false;
 char rxStart[] = {'<'};
 char rxTerm[] = {'>'};
-byte bufferLength;
+int bufferLength;
 byte inCommandPayload = PAYLOAD_FALSE;
 /*
 * Function triggered when CommandStation is sending data to this device.
 */
-void receiveEvent() {
-  char buffer[25];
-  //unsigned long startMicros = micros();
-  byte ch[1];
-  while (RS485_SERIAL.available()) {
-    RS485_SERIAL.readBytes(ch,1);
-    //RS485_SERIAL.write(ch,1); // send round the ring in case not ours
-    if (!inCommandPayload) {
-      if (ch[0] == '<') {
-        inCommandPayload = PAYLOAD_NORMAL;
-        bufferLength = 0;
-        USB_SERIAL.println();
-        USB_SERIAL.print("S");
-      }
-    } else { // if (inCommandPayload)
 
-      //if (bufferLength <  (COMMAND_BUFFER_SIZE-1)) {
-        tmpBuffer[bufferLength++] = ch[0];
-        if (ch[0] != '>') {
-          USB_SERIAL.print((char)ch[0]);
-          USB_SERIAL.print(":");
-        }
-      
-      //}
-        
-      if (inCommandPayload > PAYLOAD_NORMAL) {
-        if (inCommandPayload > 32 + 2) {    // String way too long
-          ch[0] = '>';                         // we end this nonsense
-          inCommandPayload = PAYLOAD_NORMAL;
-          USB_SERIAL.print("U");
-          // fall through to ending parsing below
-        } else
-          inCommandPayload++;
-      }
-      if (inCommandPayload == PAYLOAD_NORMAL) {
-        if (ch[0] == '>') {
-          for (int i = 0; i < bufferLength; i++) {
-            buffer[i] = tmpBuffer[i];
-            
-          }
-          rxBufferLen = bufferLength;
-          bufferLength = 0;
-          USB_SERIAL.println("X");
-          buffer[bufferLength] = 0x00;
-          inCommandPayload = PAYLOAD_FALSE;
-          break;
-        }
+void getCharsRightOfPosition(char* str, char position, char* outStr, int size) {
+  //if (position >= 0 && position < strlen(str)) {
+    int pos;
+    char retStr[size];
+    for (int i = 0; str[i] != '\0'; i++) {
+      if (str[i] == position) {
+        pos = i;
+        break; // Exit the loop once the character is found
       }
     }
+    for (int i = 0; i < size; i++) {
+      retStr[i] = str[i+pos+1];
+    }
+    USB_SERIAL.print(size);
+    USB_SERIAL.print(":");
+    USB_SERIAL.println(retStr);
+    memcpy(outStr, retStr, sizeof(outStr));
+  //}
+}
+
+void getCharsLeft(char *str, char position, char *result) {
+  int pos;
+  for (int i = 0; tmpBuffer[i] != '\0'; i++) {
+    if (tmpBuffer[i] == position) {
+      pos = i;
+      break; // Exit the loop once the character is found
+    }
   }
-  if (rxBufferLen < 1) {
-    //if (inCommandPayload >1) USB_SERIAL.println("P");
-    return;
+  if (pos >= 0 && pos < strlen(str)) {
+    for (int i = 0; i < strlen(str); i++) {
+      if (i < pos) result[i] = str[i];
+    }
   }
+}
+
+void getValues(char *buf, int fieldCnt, int *outArray) {
   char curBuff[25];
-  int outArray[25];
+  memset(curBuff, '\0', fieldCnt);
   int byteCntr = 0;
   int counter = 0;
-  for (int i = 0; i< 25; i++) {
-    if (i > rxBufferLen) {
-      free(curBuff);
+  for (int i = 0; i< fieldCnt; i++) {
+    if (byteCntr >= fieldCnt || buf[i] == '\0') {
+      USB_SERIAL.println();
+      break;
     }
-    if (buffer[i] == 0x20){
+    if (buf[i] == ' '){
       //outArray[counter] = 0x00;
       outArray[byteCntr] = atoi(curBuff);
       byteCntr++;
+      USB_SERIAL.print(curBuff);
+      USB_SERIAL.print("|");
+      memset(curBuff, '\0', sizeof(curBuff));
       counter = 0;
-    }else if (buffer[i] == 0x00) {
-      //do nothing
     } else {
-      curBuff[counter] = buffer[i];
+      curBuff[counter] = buf[i];
       counter++;
     }
   }
-  rxBufferLen = 0;
-  for (int k = 0; k < byteCntr; k++) {
-    USB_SERIAL.print(outArray[k]);
+}
+
+void procRX(char * rxbuffer, int rxBuffLen) {
+  int outValues[rxBuffLen];
+  memset(outValues, 0, sizeof(outValues));
+  getValues(rxbuffer,rxBuffLen, outValues);
+  for (int k = 0; k < rxBuffLen; k++) {
+    USB_SERIAL.print(outValues[k]);
     USB_SERIAL.print(":");
   }
   USB_SERIAL.println();
-  if (outArray[0] != RS485_NODE) return;
-  switch(outArray[0]) {
+  if (outValues[0] != RS485_NODE) return;
+  switch(outValues[0]) {
     // Initial configuration start, must be 2 bytes
     case EXIOINIT:
         {initialisePins();
-        numReceivedPins = outArray[2];
-        firstVpin = (outArray[4] << 8) + outArray[3];
+        numReceivedPins = outValues[2];
+        firstVpin = (outValues[4] << 8) + outValues[3];
         if (numReceivedPins == numPins) {
           displayEventFlag = 0;
           setupComplete = true;
@@ -149,8 +139,8 @@ void receiveEvent() {
     // Flag to set digital pin pullups, 0 disabled, 1 enabled
     case EXIODPUP:
       {outboundFlag = EXIODPUP;
-        uint8_t pin = outArray[1];
-        bool pullup = outArray[2];
+        uint8_t pin = outValues[1];
+        bool pullup = outValues[2];
         bool response = enableDigitalInput(pin, pullup);
         if (response) {
           responseBuffer[0] = EXIORDY;
@@ -165,8 +155,8 @@ void receiveEvent() {
       break;}
     case EXIOWRD:
       {outboundFlag = EXIOWRD;
-        uint8_t pin = outArray[1];
-        bool state = outArray[2];
+        uint8_t pin = outValues[1];
+        bool state = outValues[2];
         bool response = writeDigitalOutput(pin, state);
         if (response) {
           responseBuffer[0] = EXIORDY;
@@ -185,7 +175,7 @@ void receiveEvent() {
       break;}
     case EXIOENAN:
       {outboundFlag = EXIOENAN;
-        uint8_t pin = outArray[3];
+        uint8_t pin = outValues[3];
         bool response = enableAnalogue(pin);
         if (response) {
           responseBuffer[0] = EXIORDY;
@@ -196,10 +186,10 @@ void receiveEvent() {
       break;}
     case EXIOWRAN:
       {outboundFlag = EXIOWRAN;
-        uint8_t pin = outArray[3];
-        uint16_t value = outArray[4];
-        uint8_t profile = outArray[5];
-        uint16_t duration = outArray[6];
+        uint8_t pin = outValues[3];
+        uint16_t value = outValues[4];
+        uint8_t profile = outValues[5];
+        uint16_t duration = outValues[6];
         bool response = writeAnalogue(pin, value, profile, duration);
         if (response) {
           responseBuffer[0] = EXIORDY;
@@ -210,6 +200,50 @@ void receiveEvent() {
       break;}
   }
 }
+
+void receiveEvent() {
+  //unsigned long startMicros = micros();
+  char ch;
+  while (RS485_SERIAL.available()) {
+    ch = RS485_SERIAL.read();
+    //RS485_SERIAL.write(ch,1); // send round the ring in case not ours
+    if (!inCommandPayload) {
+      if (ch == '<') {
+        inCommandPayload = PAYLOAD_NORMAL;
+        bufferLength = 0;
+        //tmpBuffer[0] = '\0';
+        USB_SERIAL.println();
+        USB_SERIAL.print("S");
+      }
+    } else { // if (inCommandPayload)
+      if (inCommandPayload == PAYLOAD_NORMAL) {
+        if (ch == '>') {
+          USB_SERIAL.print("X");
+          USB_SERIAL.print(bufferLength);
+          //tmpBuffer[bufferLength] = '\0';
+          
+          char chrSize[3];
+          getCharsLeft(tmpBuffer,'|', chrSize);
+          USB_SERIAL.print(":");
+          USB_SERIAL.println(atoi(chrSize));
+          char chrSend[200];
+          getCharsRightOfPosition(tmpBuffer,'|',chrSend, sizeof(tmpBuffer));
+          procRX(chrSend, atoi(chrSize));
+          memset(tmpBuffer, '\0', sizeof(tmpBuffer));
+          bufferLength = 0;
+          inCommandPayload = PAYLOAD_FALSE;
+        
+        }
+      }
+      if (bufferLength <  (COMMAND_BUFFER_SIZE-1) && inCommandPayload == PAYLOAD_NORMAL) {
+        tmpBuffer[bufferLength] = ch;
+        bufferLength++;
+        USB_SERIAL.print(ch);
+        USB_SERIAL.print(":");
+      }
+    }
+  }
+}  
 
 /*
 * Function triggered when CommandStation polls for inputs on this device.
