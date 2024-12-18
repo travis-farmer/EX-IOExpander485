@@ -45,7 +45,7 @@ byte inCommandPayload = PAYLOAD_FALSE;
 * Function triggered when CommandStation is sending data to this device.
 */
 
-void getCharsRightOfPosition(char* str, char position, char* outStr, int size) {
+int getCharsRightOfPosition(char* str, char position, char* outStr, int size) {
   //if (position >= 0 && position < strlen(str)) {
     int pos;
     char retStr[size];
@@ -55,20 +55,19 @@ void getCharsRightOfPosition(char* str, char position, char* outStr, int size) {
         break; // Exit the loop once the character is found
       }
     }
-    for (int i = 0; i < size; i++) {
+    int i;
+    for (i = 0; i < size; i++) {
       retStr[i] = str[i+pos+1];
     }
-    USB_SERIAL.print(size);
-    USB_SERIAL.print(":");
-    USB_SERIAL.println(retStr);
-    memcpy(outStr, retStr, sizeof(outStr));
+    memcpy(outStr, retStr, i+pos+1);
+    return i+pos+2;
   //}
 }
 
 void getCharsLeft(char *str, char position, char *result) {
   int pos;
-  for (int i = 0; tmpBuffer[i] != '\0'; i++) {
-    if (tmpBuffer[i] == position) {
+  for (int i = 0; str[i] != '\0'; i++) {
+    if (str[i] == position) {
       pos = i;
       break; // Exit the loop once the character is found
     }
@@ -80,47 +79,41 @@ void getCharsLeft(char *str, char position, char *result) {
   }
 }
 
-void getValues(char *buf, int fieldCnt, int *outArray) {
+int getValues(char *buf, int lenBuf, int fieldCnt, int *outArray) {
   char curBuff[25];
-  memset(curBuff, '\0', fieldCnt);
+  memset(curBuff, '\0', 25);
   int byteCntr = 0;
   int counter = 0;
-  for (int i = 0; i< fieldCnt; i++) {
-    if (byteCntr >= fieldCnt || buf[i] == '\0') {
-      USB_SERIAL.println();
-      break;
-    }
-    if (buf[i] == ' '){
+  for (int i = 0; i< lenBuf; i++) {
+
+    if (buf[i] == ' ' || buf[i] == '\0'){
       //outArray[counter] = 0x00;
       outArray[byteCntr] = atoi(curBuff);
       byteCntr++;
-      USB_SERIAL.print(curBuff);
-      USB_SERIAL.print("|");
       memset(curBuff, '\0', sizeof(curBuff));
       counter = 0;
     } else {
       curBuff[counter] = buf[i];
       counter++;
     }
+    if (byteCntr > fieldCnt || buf[i] == '\0') {
+      break;
+    }
   }
+  return byteCntr;
 }
 
-void procRX(char * rxbuffer, int rxBuffLen) {
-  int outValues[rxBuffLen];
+void procRX(char * rxbuffer, int rxBufLen, int fieldCnt) {
+  int outValues[fieldCnt];
   memset(outValues, 0, sizeof(outValues));
-  getValues(rxbuffer,rxBuffLen, outValues);
-  for (int k = 0; k < rxBuffLen; k++) {
-    USB_SERIAL.print(outValues[k]);
-    USB_SERIAL.print(":");
-  }
-  USB_SERIAL.println();
+  int realCnt = getValues(rxbuffer, rxBufLen, fieldCnt, outValues);
   if (outValues[0] != RS485_NODE) return;
-  switch(outValues[0]) {
+  switch(outValues[2]) {
     // Initial configuration start, must be 2 bytes
     case EXIOINIT:
         {initialisePins();
-        numReceivedPins = outValues[2];
-        firstVpin = (outValues[4] << 8) + outValues[3];
+        numReceivedPins = outValues[3];
+        firstVpin = (outValues[5] << 8) + outValues[4];
         if (numReceivedPins == numPins) {
           displayEventFlag = 0;
           setupComplete = true;
@@ -139,8 +132,8 @@ void procRX(char * rxbuffer, int rxBuffLen) {
     // Flag to set digital pin pullups, 0 disabled, 1 enabled
     case EXIODPUP:
       {outboundFlag = EXIODPUP;
-        uint8_t pin = outValues[1];
-        bool pullup = outValues[2];
+        uint8_t pin = outValues[3];
+        bool pullup = outValues[4];
         bool response = enableDigitalInput(pin, pullup);
         if (response) {
           responseBuffer[0] = EXIORDY;
@@ -155,8 +148,8 @@ void procRX(char * rxbuffer, int rxBuffLen) {
       break;}
     case EXIOWRD:
       {outboundFlag = EXIOWRD;
-        uint8_t pin = outValues[1];
-        bool state = outValues[2];
+        uint8_t pin = outValues[3];
+        bool state = outValues[4];
         bool response = writeDigitalOutput(pin, state);
         if (response) {
           responseBuffer[0] = EXIORDY;
@@ -212,23 +205,17 @@ void receiveEvent() {
         inCommandPayload = PAYLOAD_NORMAL;
         bufferLength = 0;
         //tmpBuffer[0] = '\0';
-        USB_SERIAL.println();
-        USB_SERIAL.print("S");
       }
     } else { // if (inCommandPayload)
       if (inCommandPayload == PAYLOAD_NORMAL) {
         if (ch == '>') {
-          USB_SERIAL.print("X");
-          USB_SERIAL.print(bufferLength);
           //tmpBuffer[bufferLength] = '\0';
           
           char chrSize[3];
           getCharsLeft(tmpBuffer,'|', chrSize);
-          USB_SERIAL.print(":");
-          USB_SERIAL.println(atoi(chrSize));
           char chrSend[200];
-          getCharsRightOfPosition(tmpBuffer,'|',chrSend, sizeof(tmpBuffer));
-          procRX(chrSend, atoi(chrSize));
+          int remainder = getCharsRightOfPosition(tmpBuffer,'|',chrSend, sizeof(tmpBuffer));
+          procRX(chrSend, remainder, atoi(chrSize));
           memset(tmpBuffer, '\0', sizeof(tmpBuffer));
           bufferLength = 0;
           inCommandPayload = PAYLOAD_FALSE;
@@ -238,8 +225,6 @@ void receiveEvent() {
       if (bufferLength <  (COMMAND_BUFFER_SIZE-1) && inCommandPayload == PAYLOAD_NORMAL) {
         tmpBuffer[bufferLength] = ch;
         bufferLength++;
-        USB_SERIAL.print(ch);
-        USB_SERIAL.print(":");
       }
     }
   }
@@ -253,109 +238,122 @@ void requestEvent() {
   switch(outboundFlag) {
     case EXIOINIT:
       {
-      char buff[25];
-      sprintf(buff, "<%i %i %i %i %i>", 0, RS485_NODE, EXIOPINS, numDigitalPins, numAnaloguePins);
+      char buff[200];
+      memset(buff, '\0', 200);
+      sprintf(buff, "<5|%i %i %i %i %i>", 0, RS485_NODE, EXIOPINS, numDigitalPins, numAnaloguePins);
       digitalWrite(RS485_DEPIN, HIGH);
-
-      RS485_SERIAL.print(buff);
+      USB_SERIAL.print(buff);
+      RS485_SERIAL.println(buff);
       //RS485_SERIAL.flush();
       digitalWrite(RS485_DEPIN, LOW);
       break;} 
     case EXIOINITA: {
-      char buff[25];
-      
+      char buff[500];
+      memset(buff, '\0', 400);
       int cntr = 0;
-      char tmpStr[25];
-      char tmpTotal[200];
-      for (int i = 0; i <= numAnaloguePins; i++) {
-        sprintf(tmpStr, "%i ", analoguePinMap[i]);
-        for (int j = 0; j < 25; j++) {
-          tmpTotal[cntr] = tmpStr[j];
-          if (tmpStr[j] == ' ') break;
-        }
+      char tmpStr[4];
+      char tmpTotal[400];
+      for (int j = 0; j < numAnaloguePins; j++) {
+        sprintf(tmpStr, "%i ", analoguePinMap[j]);
+        strcat(tmpTotal, tmpStr);
+        memset(tmpStr, '\0', 4);
+        cntr++;
       }
-      sprintf(buff, "<%i %i %i %s>", 0, RS485_NODE, EXIOINITA, tmpTotal);
+      
+      sprintf(buff, "<%i|%i %i %i %s>", cntr+3, 0, RS485_NODE, EXIOINITA, tmpTotal);
+      memset(tmpTotal, '\0', 400);
+      USB_SERIAL.println(buff);
       digitalWrite(RS485_DEPIN, HIGH);
-      RS485_SERIAL.print(buff);
+      RS485_SERIAL.println(buff);
       //RS485_SERIAL.flush();
       digitalWrite(RS485_DEPIN, LOW);
       break;}
     case EXIORDAN: {
-      char buff[25];
-      
+      char buff[500];
+      memset(buff, '\0', 400);
       int cntr = 0;
-      char tmpStrB[25];
-      char tmpTotalB[200];
-      for (int i = 0; i <= analoguePinBytes; i++) {
-        sprintf(tmpStrB, "%i ", analoguePinStates[i]);
-        for (int j = 0; j < 25; j++) {
-          tmpTotalB[cntr] = tmpStrB[j];
-          if (tmpStrB[j] == ' ') break;
-        }
+      char tmpStr[4];
+      char tmpTotalB[400];
+      for (int j = 0; j < analoguePinBytes; j++) {
+        sprintf(tmpStr, "%i ", analoguePinStates[j]);
+        strcat(tmpTotalB, tmpStr);
+        memset(tmpStr, '\0', 4);
+        cntr++;
       }
-      sprintf(buff, "<%i %i %i %s>", 0, RS485_NODE, EXIORDAN, tmpTotalB);
+      sprintf(buff, "<%i|%i %i %i %s>", cntr+3, 0, RS485_NODE, EXIORDAN, tmpTotalB);
       digitalWrite(RS485_DEPIN, HIGH);
-      RS485_SERIAL.print(buff);
+      USB_SERIAL.print(buff);
+      RS485_SERIAL.println(buff);
       //RS485_SERIAL.flush();
       digitalWrite(RS485_DEPIN, LOW);
       break;}
     case EXIORDD:
       {
-      char buff[25];
-      
+      char buff[500];
+      memset(buff, '\0', 400);
       int cntr = 0;
-      char tmpStrB[25];
-      char tmpTotalB[200];
-      for (int i = 0; i <= digitalPinBytes; i++) {
-        sprintf(tmpStrB, "%i ", digitalPinStates[i]);
-        for (int j = 0; j < 25; j++) {
-          tmpTotalB[cntr] = tmpStrB[j];
-          if (tmpStrB[j] == ' ') break;
-        }
+      char tmpStr[4];
+      char tmpTotalB[400];
+      for (int j = 0; j < digitalPinBytes; j++) {
+        sprintf(tmpStr, "%i ", digitalPinStates[j]);
+        strcat(tmpTotalB, tmpStr);
+        memset(tmpStr, '\0', 4);
+        cntr++;
       }
-      sprintf(buff, "<%i %i %i %s>", 0, RS485_NODE, EXIORDD, tmpTotalB);
+      sprintf(buff, "<%i|%i %i %i %s>", cntr+3, 0, RS485_NODE, EXIORDD, tmpTotalB);
       digitalWrite(RS485_DEPIN, HIGH);
-      RS485_SERIAL.print(buff);
+      USB_SERIAL.print(buff);
+      RS485_SERIAL.println(buff);
       //RS485_SERIAL.flush();
       digitalWrite(RS485_DEPIN, LOW);
       break;}
     case EXIOVER: {
-      char buff[25];
-      sprintf(buff, "<%i %i %i %i %i %i>", 0, RS485_NODE, EXIOVER, versionBuffer[0], versionBuffer[1], versionBuffer[2]);
+      char buff[200];
+      memset(buff, '\0', 200);
+      sprintf(buff, "<6|%i %i %i %i %i %i>", 0, RS485_NODE, EXIOVER, versionBuffer[0], versionBuffer[1], versionBuffer[2]);
       digitalWrite(RS485_DEPIN, HIGH);
-      RS485_SERIAL.print(buff);
+      USB_SERIAL.print(buff);
+      RS485_SERIAL.println(buff);
       //RS485_SERIAL.flush();
       digitalWrite(RS485_DEPIN, LOW);
       break;}
     case EXIODPUP:
-      {char buff[25];
-      sprintf(buff, "<%i %i %i>", 0, RS485_NODE, responseBuffer);
+      {char buff[200];
+      memset(buff, '\0', 200);
+      sprintf(buff, "<3|%i %i %i>", 0, RS485_NODE, responseBuffer);
       digitalWrite(RS485_DEPIN, HIGH);
-      RS485_SERIAL.print(buff);
+      USB_SERIAL.print(buff);
+      RS485_SERIAL.println(buff);
       //RS485_SERIAL.flush();
       digitalWrite(RS485_DEPIN, LOW);
       break;}
     case EXIOENAN:
-      {char buff[25];
-      sprintf(buff, "<%i %i %i>", 0, RS485_NODE, responseBuffer);
+      {char buff[200];
+      memset(buff, '\0', 200);
+      sprintf(buff, "<3|%i %i %i>", 0, RS485_NODE, responseBuffer);
       digitalWrite(RS485_DEPIN, HIGH);
-      RS485_SERIAL.print(buff);
+      USB_SERIAL.print(buff);
+      RS485_SERIAL.println(buff);
       //RS485_SERIAL.flush();
       digitalWrite(RS485_DEPIN, LOW);
       break;}
     case EXIOWRAN:
-      {char buff[25];
-      sprintf(buff, "<%i %i %i>", 0, RS485_NODE, responseBuffer);
+      {char buff[200];
+      memset(buff, '\0', 200);
+      sprintf(buff, "<3|%i %i %i>", 0, RS485_NODE, responseBuffer);
       digitalWrite(RS485_DEPIN, HIGH);
-      RS485_SERIAL.print(buff);
+      USB_SERIAL.print(buff);
+      RS485_SERIAL.println(buff);
       //RS485_SERIAL.flush();
       digitalWrite(RS485_DEPIN, LOW);
       break;}
     case EXIOWRD:
-      {char buff[25];
-      sprintf(buff, "<%i %i %i>", 0, RS485_NODE, responseBuffer);
+      {char buff[200];
+      memset(buff, '\0', 200);
+      sprintf(buff, "<3|%i %i %i>", 0, RS485_NODE, responseBuffer);
       digitalWrite(RS485_DEPIN, HIGH);
-      RS485_SERIAL.print(buff);
+      USB_SERIAL.print(buff);
+      RS485_SERIAL.println(buff);
       //RS485_SERIAL.flush();
       digitalWrite(RS485_DEPIN, LOW);
       break;}
