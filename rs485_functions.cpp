@@ -49,12 +49,11 @@ uint16_t crc16(uint8_t *data, uint16_t length) {
 }
 
 void SendResponce(int *Buffer) {
-  int response_data[ARRAY_SIZE];
       // Calculate CRC for response data
       uint16_t response_crc = crc16((uint8_t*)Buffer, ARRAY_SIZE * sizeof(int));
       digitalWrite(RS485_DEPIN,HIGH);
       // Send response data with CRC
-      for (int i = 0; i < ARRAY_SIZE * sizeof(int); i++) {
+      for (int i = 0; i < ARRAY_SIZE; i++) {
         RS485_SERIAL.write(Buffer[i]);
       }
       RS485_SERIAL.write(response_crc >> 8);
@@ -64,22 +63,28 @@ void SendResponce(int *Buffer) {
 
 void serialLoopRx() {
   // Check if data is available
-  if (RS485_SERIAL.available() >= ARRAY_SIZE * sizeof(int) + 2) {
+  //if (RS485_SERIAL.available() >= ARRAY_SIZE) {
     int received_data[ARRAY_SIZE];
 
     // Read data and CRC
-    for (int i = 0; i < ARRAY_SIZE * sizeof(int); i++) {
-      received_data[i / sizeof(int)] = RS485_SERIAL.read();
+    for (int i = 0; i < ARRAY_SIZE; i++) {
+      received_data[i] = RS485_SERIAL.read();
     }
     uint16_t received_crc = (RS485_SERIAL.read() << 8) | RS485_SERIAL.read();
 
     // Calculate CRC for received data
-    uint16_t calculated_crc = crc16((uint8_t*)received_data, ARRAY_SIZE * sizeof(int));
+    uint16_t calculated_crc = crc16((uint8_t*)received_data, ARRAY_SIZE);
 
     // Check CRC validity
     if (calculated_crc == received_crc) {
       // Data received successfully, process it 
+      USB_SERIAL.println("CRC pass");
       int nodeTo = (received_data[1] << 8) | received_data[0];
+      //if (nodeTo != RS485_NODE) {
+        // retransmit and exit, if not ours
+        //SendResponce(received_data);
+       // return;
+      //}
       int nodeFr = (received_data[3] << 8) | received_data[2];
       int AddrCode = (received_data[5] << 8) | received_data[4];
       
@@ -119,7 +124,7 @@ void serialLoopRx() {
           resArrayB[5] = highByte(EXIOINITA);
           for (int j = 0; j < numAnaloguePins; j=j+2) {
             resArrayB[j+5] = lowByte(analoguePinMap[j]);
-            resArrayB[j+6] = highByte(analoguePinMap[j]);
+            resArrayB[j+6] = highByte(analoguePinMap[j+1]);
           }
           SendResponce(resArrayB);
           break;}
@@ -154,7 +159,7 @@ void serialLoopRx() {
             resArrayD[5] = highByte(EXIORDAN);
             for (int j = 0; j < analoguePinBytes; j=j+2) {
               resArrayD[j+5] = lowByte(analoguePinStates[j]);
-              resArrayD[j+6] = highByte(analoguePinStates[j]);
+              resArrayD[j+6] = highByte(analoguePinStates[j+1]);
             }
             SendResponce(resArrayD);
             break;}
@@ -188,7 +193,7 @@ void serialLoopRx() {
             resArrayF[5] = highByte(EXIORDD);
             for (int j = 0; j < digitalPinBytes; j=j+2) {
               resArrayF[j+5] = lowByte(digitalPinStates[j]);
-              resArrayF[j+6] = highByte(digitalPinStates[j]);
+              resArrayF[j+6] = highByte(digitalPinStates[j+1]);
             }
             SendResponce(resArrayF);
             break;}
@@ -203,10 +208,10 @@ void serialLoopRx() {
             resArrayG[5] = highByte(EXIOVER);
             resArrayG[6] = lowByte(versionBuffer[0]);
             resArrayG[7] = highByte(versionBuffer[0]);
-            resArrayG[6] = lowByte(versionBuffer[1]);
-            resArrayG[7] = highByte(versionBuffer[1]);
-            resArrayG[8] = lowByte(versionBuffer[2]);
-            resArrayG[9] = highByte(versionBuffer[2]);
+            resArrayG[8] = lowByte(versionBuffer[1]);
+            resArrayG[9] = highByte(versionBuffer[1]);
+            resArrayG[10] = lowByte(versionBuffer[2]);
+            resArrayG[11] = highByte(versionBuffer[2]);
             SendResponce(resArrayG);
             break;}
           case EXIOENAN:
@@ -251,7 +256,10 @@ void serialLoopRx() {
       }
 
     } else {
-      USB_SERIAL.println("Error: CRC mismatch!");
+      //USB_SERIAL.println("Error: CRC mismatch!");
     }
-  }
+  //}else {
+    //USB_SERIAL.print(RS485_SERIAL.available());
+    //USB_SERIAL.print(":");
+  //}
 }
