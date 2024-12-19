@@ -24,6 +24,6 @@
 #include "globals.h"
 
 extern uint8_t numReceivedPins;
-void receiveEvent();
-void requestEvent();
+void serialLoopRx();
+
 #endif

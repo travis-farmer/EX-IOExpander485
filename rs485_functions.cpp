@@ -22,11 +22,6 @@
 #include "rs485_functions.h"
 #include "display_functions.h"
 #include "pin_io_functions.h"
-static const byte PAYLOAD_FALSE = 0;
-static const byte PAYLOAD_NORMAL = 1;
-static const byte PAYLOAD_STRING = 2;
-#define COMMAND_BUFFER_SIZE 25
-char tmpBuffer[COMMAND_BUFFER_SIZE]; 
 uint8_t numAnaloguePins = 0;  // Init with 0, will be overridden by config
 uint8_t numDigitalPins = 0;   // Init with 0, will be overridden by config
 uint8_t numPWMPins = 0;  // Number of PWM capable pins
@@ -35,329 +30,228 @@ uint8_t outboundFlag;   // Used to determine what data to send back to the Comma
 char commandBuffer[3];    // Command buffer to interact with device driver
 byte responseBuffer[1];   // Buffer to send single response back to device driver
 uint8_t numReceivedPins = 0;
-int rxBufferLen = 0;
-bool rxEnd = false;
-char rxStart[] = {'<'};
-char rxTerm[] = {'>'};
-int bufferLength;
-byte inCommandPayload = PAYLOAD_FALSE;
-/*
-* Function triggered when CommandStation is sending data to this device.
-*/
 
-int getCharsRightOfPosition(char* str, char position, char* outStr, int size) {
-  //if (position >= 0 && position < strlen(str)) {
-    int pos;
-    char retStr[size];
-    for (int i = 0; str[i] != '\0'; i++) {
-      if (str[i] == position) {
-        pos = i;
-        break; // Exit the loop once the character is found
+#define ARRAY_SIZE 250
+// CRC-16 implementation (replace with your preferred CRC library if needed)
+uint16_t crc16(uint8_t *data, uint16_t length) {
+  uint16_t crc = 0xFFFF;
+  for (uint16_t i = 0; i < length; i++) {
+    crc ^= data[i];
+    for (int j = 0; j < 8; j++) {
+      bool bit = ((crc & 0x0001) != 0);
+      crc >>= 1;
+      if (bit) {
+        crc ^= 0xA001;
       }
     }
-    int i;
-    for (i = 0; i < size; i++) {
-      retStr[i] = str[i+pos+1];
-    }
-    memcpy(outStr, retStr, i+pos+1);
-    return i+pos+2;
-  //}
+  }
+  return crc;
 }
 
-void getCharsLeft(char *str, char position, char *result) {
-  int pos;
-  for (int i = 0; str[i] != '\0'; i++) {
-    if (str[i] == position) {
-      pos = i;
-      break; // Exit the loop once the character is found
-    }
-  }
-  if (pos >= 0 && pos < strlen(str)) {
-    for (int i = 0; i < strlen(str); i++) {
-      if (i < pos) result[i] = str[i];
-    }
-  }
+void SendResponce(int *Buffer) {
+  int response_data[ARRAY_SIZE];
+      // Calculate CRC for response data
+      uint16_t response_crc = crc16((uint8_t*)Buffer, ARRAY_SIZE * sizeof(int));
+      digitalWrite(RS485_DEPIN,HIGH);
+      // Send response data with CRC
+      for (int i = 0; i < ARRAY_SIZE * sizeof(int); i++) {
+        RS485_SERIAL.write(Buffer[i]);
+      }
+      RS485_SERIAL.write(response_crc >> 8);
+      RS485_SERIAL.write(response_crc & 0xFF);
+      digitalWrite(RS485_DEPIN,LOW);
 }
 
-int getValues(char *buf, int lenBuf, int fieldCnt, int *outArray) {
-  char curBuff[25];
-  memset(curBuff, '\0', 25);
-  int byteCntr = 0;
-  int counter = 0;
-  for (int i = 0; i< lenBuf; i++) {
+void serialLoopRx() {
+  // Check if data is available
+  if (RS485_SERIAL.available() >= ARRAY_SIZE * sizeof(int) + 2) {
+    int received_data[ARRAY_SIZE];
 
-    if (buf[i] == ' ' || buf[i] == '\0'){
-      //outArray[counter] = 0x00;
-      outArray[byteCntr] = atoi(curBuff);
-      byteCntr++;
-      memset(curBuff, '\0', sizeof(curBuff));
-      counter = 0;
-    } else {
-      curBuff[counter] = buf[i];
-      counter++;
+    // Read data and CRC
+    for (int i = 0; i < ARRAY_SIZE * sizeof(int); i++) {
+      received_data[i / sizeof(int)] = RS485_SERIAL.read();
     }
-    if (byteCntr > fieldCnt || buf[i] == '\0') {
-      break;
-    }
-  }
-  return byteCntr;
-}
+    uint16_t received_crc = (RS485_SERIAL.read() << 8) | RS485_SERIAL.read();
 
-void procRX(char * rxbuffer, int rxBufLen, int fieldCnt) {
-  int outValues[fieldCnt];
-  memset(outValues, 0, sizeof(outValues));
-  int realCnt = getValues(rxbuffer, rxBufLen, fieldCnt, outValues);
-  if (outValues[0] != RS485_NODE) return;
-  switch(outValues[2]) {
-    // Initial configuration start, must be 2 bytes
-    case EXIOINIT:
-        {initialisePins();
-        numReceivedPins = outValues[3];
-        firstVpin = (outValues[5] << 8) + outValues[4];
-        if (numReceivedPins == numPins) {
-          displayEventFlag = 0;
-          setupComplete = true;
-        } else {
-          displayEventFlag = 1;
-          setupComplete = false;
-        }
-        outboundFlag = EXIOINIT;
-        displayEvent = EXIOINIT;
-        requestEvent();
-      break;}
-    case EXIOINITA:
-        {outboundFlag = EXIOINITA;
-      requestEvent();
-      break;}
-    // Flag to set digital pin pullups, 0 disabled, 1 enabled
-    case EXIODPUP:
-      {outboundFlag = EXIODPUP;
-        uint8_t pin = outValues[3];
-        bool pullup = outValues[4];
-        bool response = enableDigitalInput(pin, pullup);
-        if (response) {
-          responseBuffer[0] = EXIORDY;
-        } else {
-          responseBuffer[0] = EXIOERR;
-        }
-      requestEvent();
-      break;}
-    case EXIORDAN:
-        {outboundFlag = EXIORDAN;
-      requestEvent();
-      break;}
-    case EXIOWRD:
-      {outboundFlag = EXIOWRD;
-        uint8_t pin = outValues[3];
-        bool state = outValues[4];
-        bool response = writeDigitalOutput(pin, state);
-        if (response) {
-          responseBuffer[0] = EXIORDY;
-        } else {
-          responseBuffer[0] = EXIOERR;
-        }
-      requestEvent();
-      break;}
-    case EXIORDD:
-        {outboundFlag = EXIORDD;
-      requestEvent();
-      break;}
-    case EXIOVER:
-        {outboundFlag = EXIOVER;
-      requestEvent();
-      break;}
-    case EXIOENAN:
-      {outboundFlag = EXIOENAN;
-        uint8_t pin = outValues[3];
-        bool response = enableAnalogue(pin);
-        if (response) {
-          responseBuffer[0] = EXIORDY;
-        } else {
-          responseBuffer[0] = EXIOERR;
-        }
-      requestEvent();
-      break;}
-    case EXIOWRAN:
-      {outboundFlag = EXIOWRAN;
-        uint8_t pin = outValues[3];
-        uint16_t value = outValues[4];
-        uint8_t profile = outValues[5];
-        uint16_t duration = outValues[6];
-        bool response = writeAnalogue(pin, value, profile, duration);
-        if (response) {
-          responseBuffer[0] = EXIORDY;
-        } else {
-          responseBuffer[0] = EXIOERR;
-        }
-      requestEvent();
-      break;}
-  }
-}
+    // Calculate CRC for received data
+    uint16_t calculated_crc = crc16((uint8_t*)received_data, ARRAY_SIZE * sizeof(int));
 
-void receiveEvent() {
-  //unsigned long startMicros = micros();
-  char ch;
-  while (RS485_SERIAL.available()) {
-    ch = RS485_SERIAL.read();
-    //RS485_SERIAL.write(ch,1); // send round the ring in case not ours
-    if (!inCommandPayload) {
-      if (ch == '<') {
-        inCommandPayload = PAYLOAD_NORMAL;
-        bufferLength = 0;
-        //tmpBuffer[0] = '\0';
-      }
-    } else { // if (inCommandPayload)
-      if (inCommandPayload == PAYLOAD_NORMAL) {
-        if (ch == '>') {
-          //tmpBuffer[bufferLength] = '\0';
-          
-          char chrSize[3];
-          getCharsLeft(tmpBuffer,'|', chrSize);
-          char chrSend[200];
-          int remainder = getCharsRightOfPosition(tmpBuffer,'|',chrSend, sizeof(tmpBuffer));
-          procRX(chrSend, remainder, atoi(chrSize));
-          memset(tmpBuffer, '\0', sizeof(tmpBuffer));
-          bufferLength = 0;
-          inCommandPayload = PAYLOAD_FALSE;
-        
-        }
-      }
-      if (bufferLength <  (COMMAND_BUFFER_SIZE-1) && inCommandPayload == PAYLOAD_NORMAL) {
-        tmpBuffer[bufferLength] = ch;
-        bufferLength++;
-      }
-    }
-  }
-}  
-
-/*
-* Function triggered when CommandStation polls for inputs on this device.
-*/
-void requestEvent() {
-  
-  switch(outboundFlag) {
-    case EXIOINIT:
-      {
-      char buff[200];
-      memset(buff, '\0', 200);
-      sprintf(buff, "<5|%i %i %i %i %i>", 0, RS485_NODE, EXIOPINS, numDigitalPins, numAnaloguePins);
-      digitalWrite(RS485_DEPIN, HIGH);
-      USB_SERIAL.print(buff);
-      RS485_SERIAL.println(buff);
-      //RS485_SERIAL.flush();
-      digitalWrite(RS485_DEPIN, LOW);
-      break;} 
-    case EXIOINITA: {
-      char buff[500];
-      memset(buff, '\0', 400);
-      int cntr = 0;
-      char tmpStr[4];
-      char tmpTotal[400];
-      for (int j = 0; j < numAnaloguePins; j++) {
-        sprintf(tmpStr, "%i ", analoguePinMap[j]);
-        strcat(tmpTotal, tmpStr);
-        memset(tmpStr, '\0', 4);
-        cntr++;
-      }
+    // Check CRC validity
+    if (calculated_crc == received_crc) {
+      // Data received successfully, process it 
+      int nodeTo = (received_data[1] << 8) | received_data[0];
+      int nodeFr = (received_data[3] << 8) | received_data[2];
+      int AddrCode = (received_data[5] << 8) | received_data[4];
       
-      sprintf(buff, "<%i|%i %i %i %s>", cntr+3, 0, RS485_NODE, EXIOINITA, tmpTotal);
-      memset(tmpTotal, '\0', 400);
-      USB_SERIAL.println(buff);
-      digitalWrite(RS485_DEPIN, HIGH);
-      RS485_SERIAL.println(buff);
-      //RS485_SERIAL.flush();
-      digitalWrite(RS485_DEPIN, LOW);
-      break;}
-    case EXIORDAN: {
-      char buff[500];
-      memset(buff, '\0', 400);
-      int cntr = 0;
-      char tmpStr[4];
-      char tmpTotalB[400];
-      for (int j = 0; j < analoguePinBytes; j++) {
-        sprintf(tmpStr, "%i ", analoguePinStates[j]);
-        strcat(tmpTotalB, tmpStr);
-        memset(tmpStr, '\0', 4);
-        cntr++;
+      switch (AddrCode) {
+        case EXIOINIT:
+          {initialisePins();
+          numReceivedPins = received_data[6];
+          firstVpin = (received_data[8] << 8) + received_data[7];
+          if (numReceivedPins == numPins) {
+            displayEventFlag = 0;
+            setupComplete = true;
+          } else {
+            displayEventFlag = 1;
+            setupComplete = false;
+          }
+          int resArrayA[ARRAY_SIZE];
+          resArrayA[0] = lowByte(0);
+          resArrayA[1] = highByte(0);
+          resArrayA[2] = lowByte(RS485_NODE);
+          resArrayA[3] = highByte(RS485_NODE);
+          resArrayA[4] = lowByte(EXIOPINS);
+          resArrayA[5] = highByte(EXIOPINS);
+          resArrayA[6] = lowByte(numDigitalPins);
+          resArrayA[7] = highByte(numDigitalPins);
+          resArrayA[6] = lowByte(numAnaloguePins);
+          resArrayA[7] = highByte(numAnaloguePins);
+          SendResponce(resArrayA);
+          break;}
+        case EXIOINITA:
+          {
+          int resArrayB[ARRAY_SIZE];
+          resArrayB[0] = lowByte(0);
+          resArrayB[1] = highByte(0);
+          resArrayB[2] = lowByte(RS485_NODE);
+          resArrayB[3] = highByte(RS485_NODE);
+          resArrayB[4] = lowByte(EXIOINITA);
+          resArrayB[5] = highByte(EXIOINITA);
+          for (int j = 0; j < numAnaloguePins; j=j+2) {
+            resArrayB[j+5] = lowByte(analoguePinMap[j]);
+            resArrayB[j+6] = highByte(analoguePinMap[j]);
+          }
+          SendResponce(resArrayB);
+          break;}
+        // Flag to set digital pin pullups, 0 disabled, 1 enabled
+        case EXIODPUP:
+          {
+            uint8_t pin = (received_data[7] << 8) + received_data[6];;
+            bool pullup = (received_data[9] << 8) + received_data[8];;
+            bool response = enableDigitalInput(pin, pullup);
+            int resArrayC[ARRAY_SIZE];
+            resArrayC[0] = lowByte(0);
+            resArrayC[1] = highByte(0);
+            resArrayC[2] = lowByte(RS485_NODE);
+            resArrayC[3] = highByte(RS485_NODE);
+            if (response) {
+              resArrayC[4] = lowByte(EXIORDY);
+              resArrayC[5] = highByte(EXIORDY);
+            } else {
+              resArrayC[4] = lowByte(EXIOERR);
+              resArrayC[5] = highByte(EXIOERR);
+            }
+          SendResponce(resArrayC);
+          break;}
+          case EXIORDAN:
+            {
+            int resArrayD[ARRAY_SIZE];
+            resArrayD[0] = lowByte(0);
+            resArrayD[1] = highByte(0);
+            resArrayD[2] = lowByte(RS485_NODE);
+            resArrayD[3] = highByte(RS485_NODE);
+            resArrayD[4] = lowByte(EXIORDAN);
+            resArrayD[5] = highByte(EXIORDAN);
+            for (int j = 0; j < analoguePinBytes; j=j+2) {
+              resArrayD[j+5] = lowByte(analoguePinStates[j]);
+              resArrayD[j+6] = highByte(analoguePinStates[j]);
+            }
+            SendResponce(resArrayD);
+            break;}
+          case EXIOWRD:
+            {
+            uint8_t pin = (received_data[7] << 8) + received_data[6];
+            bool state = (((received_data[9] << 8) + received_data[8]) == 1)? true:false;
+            bool response = writeDigitalOutput(pin, state);
+            int resArrayE[ARRAY_SIZE];
+            resArrayE[0] = lowByte(0);
+            resArrayE[1] = highByte(0);
+            resArrayE[2] = lowByte(RS485_NODE);
+            resArrayE[3] = highByte(RS485_NODE);
+            if (response) {
+              resArrayE[4] = lowByte(EXIORDY);
+              resArrayE[5] = highByte(EXIORDY);
+            } else {
+              resArrayE[4] = lowByte(EXIOERR);
+              resArrayE[5] = highByte(EXIOERR);
+            }
+            SendResponce(resArrayE);
+            break;}
+          case EXIORDD:
+            {
+            int resArrayF[ARRAY_SIZE];
+            resArrayF[0] = lowByte(0);
+            resArrayF[1] = highByte(0);
+            resArrayF[2] = lowByte(RS485_NODE);
+            resArrayF[3] = highByte(RS485_NODE);
+            resArrayF[4] = lowByte(EXIORDD);
+            resArrayF[5] = highByte(EXIORDD);
+            for (int j = 0; j < digitalPinBytes; j=j+2) {
+              resArrayF[j+5] = lowByte(digitalPinStates[j]);
+              resArrayF[j+6] = highByte(digitalPinStates[j]);
+            }
+            SendResponce(resArrayF);
+            break;}
+          case EXIOVER:
+            {
+            int resArrayG[ARRAY_SIZE];
+            resArrayG[0] = lowByte(0);
+            resArrayG[1] = highByte(0);
+            resArrayG[2] = lowByte(RS485_NODE);
+            resArrayG[3] = highByte(RS485_NODE);
+            resArrayG[4] = lowByte(EXIOVER);
+            resArrayG[5] = highByte(EXIOVER);
+            resArrayG[6] = lowByte(versionBuffer[0]);
+            resArrayG[7] = highByte(versionBuffer[0]);
+            resArrayG[6] = lowByte(versionBuffer[1]);
+            resArrayG[7] = highByte(versionBuffer[1]);
+            resArrayG[8] = lowByte(versionBuffer[2]);
+            resArrayG[9] = highByte(versionBuffer[2]);
+            SendResponce(resArrayG);
+            break;}
+          case EXIOENAN:
+            {
+            uint8_t pin = (received_data[7] << 8) + received_data[6];
+            bool response = enableAnalogue(pin);
+            int resArrayH[ARRAY_SIZE];
+            resArrayH[0] = lowByte(0);
+            resArrayH[1] = highByte(0);
+            resArrayH[2] = lowByte(RS485_NODE);
+            resArrayH[3] = highByte(RS485_NODE);
+            if (response) {
+              resArrayH[4] = lowByte(EXIORDY);
+              resArrayH[5] = highByte(EXIORDY);
+            } else {
+              resArrayH[4] = lowByte(EXIOERR);
+              resArrayH[5] = highByte(EXIOERR);
+            }
+            SendResponce(resArrayH);
+            break;}
+          case EXIOWRAN:
+            {
+            uint8_t pin = (received_data[7] << 8) + received_data[6];
+            uint16_t value = (received_data[7] << 8) + received_data[6];
+            uint8_t profile = (received_data[7] << 8) + received_data[6];
+            uint16_t duration = (received_data[7] << 8) + received_data[6];
+            bool response = writeAnalogue(pin, value, profile, duration);
+            int resArrayH[ARRAY_SIZE];
+            resArrayH[0] = lowByte(0);
+            resArrayH[1] = highByte(0);
+            resArrayH[2] = lowByte(RS485_NODE);
+            resArrayH[3] = highByte(RS485_NODE);
+            if (response) {
+              resArrayH[4] = lowByte(EXIORDY);
+              resArrayH[5] = highByte(EXIORDY);
+            } else {
+              resArrayH[4] = lowByte(EXIOERR);
+              resArrayH[5] = highByte(EXIOERR);
+            }
+            SendResponce(resArrayH);
+            break;}
       }
-      sprintf(buff, "<%i|%i %i %i %s>", cntr+3, 0, RS485_NODE, EXIORDAN, tmpTotalB);
-      digitalWrite(RS485_DEPIN, HIGH);
-      USB_SERIAL.print(buff);
-      RS485_SERIAL.println(buff);
-      //RS485_SERIAL.flush();
-      digitalWrite(RS485_DEPIN, LOW);
-      break;}
-    case EXIORDD:
-      {
-      char buff[500];
-      memset(buff, '\0', 400);
-      int cntr = 0;
-      char tmpStr[4];
-      char tmpTotalB[400];
-      for (int j = 0; j < digitalPinBytes; j++) {
-        sprintf(tmpStr, "%i ", digitalPinStates[j]);
-        strcat(tmpTotalB, tmpStr);
-        memset(tmpStr, '\0', 4);
-        cntr++;
-      }
-      sprintf(buff, "<%i|%i %i %i %s>", cntr+3, 0, RS485_NODE, EXIORDD, tmpTotalB);
-      digitalWrite(RS485_DEPIN, HIGH);
-      USB_SERIAL.print(buff);
-      RS485_SERIAL.println(buff);
-      //RS485_SERIAL.flush();
-      digitalWrite(RS485_DEPIN, LOW);
-      break;}
-    case EXIOVER: {
-      char buff[200];
-      memset(buff, '\0', 200);
-      sprintf(buff, "<6|%i %i %i %i %i %i>", 0, RS485_NODE, EXIOVER, versionBuffer[0], versionBuffer[1], versionBuffer[2]);
-      digitalWrite(RS485_DEPIN, HIGH);
-      USB_SERIAL.print(buff);
-      RS485_SERIAL.println(buff);
-      //RS485_SERIAL.flush();
-      digitalWrite(RS485_DEPIN, LOW);
-      break;}
-    case EXIODPUP:
-      {char buff[200];
-      memset(buff, '\0', 200);
-      sprintf(buff, "<3|%i %i %i>", 0, RS485_NODE, responseBuffer);
-      digitalWrite(RS485_DEPIN, HIGH);
-      USB_SERIAL.print(buff);
-      RS485_SERIAL.println(buff);
-      //RS485_SERIAL.flush();
-      digitalWrite(RS485_DEPIN, LOW);
-      break;}
-    case EXIOENAN:
-      {char buff[200];
-      memset(buff, '\0', 200);
-      sprintf(buff, "<3|%i %i %i>", 0, RS485_NODE, responseBuffer);
-      digitalWrite(RS485_DEPIN, HIGH);
-      USB_SERIAL.print(buff);
-      RS485_SERIAL.println(buff);
-      //RS485_SERIAL.flush();
-      digitalWrite(RS485_DEPIN, LOW);
-      break;}
-    case EXIOWRAN:
-      {char buff[200];
-      memset(buff, '\0', 200);
-      sprintf(buff, "<3|%i %i %i>", 0, RS485_NODE, responseBuffer);
-      digitalWrite(RS485_DEPIN, HIGH);
-      USB_SERIAL.print(buff);
-      RS485_SERIAL.println(buff);
-      //RS485_SERIAL.flush();
-      digitalWrite(RS485_DEPIN, LOW);
-      break;}
-    case EXIOWRD:
-      {char buff[200];
-      memset(buff, '\0', 200);
-      sprintf(buff, "<3|%i %i %i>", 0, RS485_NODE, responseBuffer);
-      digitalWrite(RS485_DEPIN, HIGH);
-      USB_SERIAL.print(buff);
-      RS485_SERIAL.println(buff);
-      //RS485_SERIAL.flush();
-      digitalWrite(RS485_DEPIN, LOW);
-      break;}
-  }
-  outboundFlag = 0;
-}
 
+    } else {
+      USB_SERIAL.println("Error: CRC mismatch!");
+    }
+  }
+}
