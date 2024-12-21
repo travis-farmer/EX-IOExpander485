@@ -59,17 +59,28 @@ uint16_t crc16(uint8_t *data, uint16_t length) {
   return crc;
 }
 
-void SendResponce(uint8_t *Buffer, int byteCount) {
+void SendResponce(uint8_t *outBuffer, int byteCount) {
       // Calculate CRC for response data
-      uint16_t response_crc = crc16((uint8_t*)Buffer, byteCount);
+      uint16_t response_crc = crc16((uint8_t*)outBuffer, byteCount-1);
       digitalWrite(RS485_DEPIN,HIGH);
       // Send response data with CRC
+      RS485_SERIAL.write(0xFE);
+      RS485_SERIAL.write(0xFE);
+      
       RS485_SERIAL.write(response_crc >> 8);
       RS485_SERIAL.write(response_crc & 0xFF);
       RS485_SERIAL.write(byteCount);
+      USB_SERIAL.print(byteCount);
+      USB_SERIAL.print("|");
       for (int i = 0; i < byteCount; i++) {
-        RS485_SERIAL.write(Buffer[i]);
+        RS485_SERIAL.write(outBuffer[i]);
+        USB_SERIAL.print(outBuffer[i], HEX);
+        USB_SERIAL.print(":");
       }
+      USB_SERIAL.println();
+      RS485_SERIAL.write(0xFD);
+      RS485_SERIAL.write(0xFD);
+      
       digitalWrite(RS485_DEPIN,LOW);
 }
 
@@ -101,9 +112,6 @@ void serialLoopRx() {
     } else if (byteCounter == 1) {
       crc[1] = curByte;
       received_crc  = (crc[0] << 8) | crc[1];
-      USB_SERIAL.print("crc ");
-      USB_SERIAL.print(received_crc, HEX);
-      USB_SERIAL.print(":");
       byteCounter++;
     } else if (byteCounter == 2) {
       byteCount = curByte;
@@ -122,12 +130,12 @@ void serialLoopRx() {
     }
     if (flagEnded) {
       calculated_crc = crc16((uint8_t*)received_data, byteCount-6);
-      USB_SERIAL.print("CRC ");
-      USB_SERIAL.print(calculated_crc, HEX);
-      USB_SERIAL.println(":");
       if (received_crc == calculated_crc) {
         USB_SERIAL.println("CRC PASS");
         crcPass = true;
+      } else {
+        USB_SERIAL.println("CRC FAIL");
+        crcPass = false;
       }
       flagEnded = false;
     }
@@ -141,7 +149,6 @@ void serialLoopRx() {
       }
       int nodeFr = received_data[1];
       int AddrCode = received_data[2];
-      USB_SERIAL.println(AddrCode, HEX);
       switch (AddrCode) {
         case EXIOINIT:
           {
@@ -149,6 +156,8 @@ void serialLoopRx() {
           numReceivedPins = received_data[3];
           firstVpin = (received_data[5] << 8) + received_data[4];
           USB_SERIAL.print(numReceivedPins);
+          USB_SERIAL.print(":");
+          USB_SERIAL.print(numPins);
           USB_SERIAL.print(":");
           USB_SERIAL.println(firstVpin);
           if (numReceivedPins == numPins) {
@@ -158,6 +167,7 @@ void serialLoopRx() {
             displayEventFlag = 1;
             setupComplete = false;
           }
+          displayEvent = EXIOINIT;
           uint8_t resArrayA[ARRAY_SIZE];
           resArrayA[0] = (0);
           resArrayA[1] = (RS485_NODE);
@@ -168,16 +178,18 @@ void serialLoopRx() {
           break;}
         case EXIOINITA:
           {
-          uint8_t resArrayB[ARRAY_SIZE];
-          resArrayB[0] = (0);
-          resArrayB[1] = (RS485_NODE);
-          resArrayB[2] = (EXIOINITA);
-          int j = 0;
-          for (j = 0; j < numAnaloguePins; j++) {
-            resArrayB[j+3] = highByte(analoguePinMap[j]);
-          }
-          SendResponce(resArrayB,j+3);
-          break;}
+            
+            uint8_t resArrayB[ARRAY_SIZE];
+            resArrayB[0] = (0);
+            resArrayB[1] = (RS485_NODE);
+            resArrayB[2] = (EXIOINITA);
+            int j = 0;
+            for (j = 0; j < numAnaloguePins; j++) {
+              resArrayB[j+3] = (analoguePinMap[j]);
+            }
+            
+            SendResponce(resArrayB,j+2);
+            break;}
         // Flag to set digital pin pullups, 0 disabled, 1 enabled
         case EXIODPUP:
           {
@@ -204,7 +216,7 @@ void serialLoopRx() {
             for (j = 0; j < analoguePinBytes; j++) {
               resArrayD[j+3] = (analoguePinStates[j]);
             }
-            SendResponce(resArrayD, j+3);
+            SendResponce(resArrayD, j+2);
             break;}
           case EXIOWRD:
             {
@@ -231,7 +243,7 @@ void serialLoopRx() {
             for (j = 0; j < digitalPinBytes; j++) {
               resArrayF[j+3] = (digitalPinStates[j]);
             }
-            SendResponce(resArrayF,j+3);
+            SendResponce(resArrayF,j+2);
             break;}
           case EXIOVER:
             {
@@ -284,4 +296,5 @@ void serialLoopRx() {
     //USB_SERIAL.print(RS485_SERIAL.available());
     //USB_SERIAL.print(":");
   }
+  crcPass = false;
 }
