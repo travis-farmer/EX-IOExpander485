@@ -136,7 +136,6 @@ void loop() {
   }
   if (setupComplete) {
     
-    
     processInputs();
     outputTestState = processOutputTest(outputTestState);
     processServos();

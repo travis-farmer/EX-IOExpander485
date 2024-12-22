@@ -70,14 +70,9 @@ void SendResponce(uint8_t *outBuffer, int byteCount) {
       RS485_SERIAL.write(response_crc >> 8);
       RS485_SERIAL.write(response_crc & 0xFF);
       RS485_SERIAL.write(byteCount);
-      USB_SERIAL.print(byteCount);
-      USB_SERIAL.print("|");
       for (int i = 0; i < byteCount; i++) {
         RS485_SERIAL.write(outBuffer[i]);
-        USB_SERIAL.print(outBuffer[i], HEX);
-        USB_SERIAL.print(":");
       }
-      USB_SERIAL.println();
       RS485_SERIAL.write(0xFD);
       RS485_SERIAL.write(0xFD);
       
@@ -93,7 +88,6 @@ void serialLoopRx() {
     uint16_t calculated_crc;
     int byteCount = 100;
     
-    uint8_t byte_array[byteCount];
     int curByte = RS485_SERIAL.read();
     
     if (curByte == 0xFE && flagStart == false) flagStart = true;
@@ -105,6 +99,7 @@ void serialLoopRx() {
       rxStart = true;
       rxEnd = false;
       crcPass = false;
+      memset(received_data, 0, ARRAY_SIZE);
     }else if (flagStarted) {
       crc[0] = curByte;
       byteCounter++;
@@ -131,7 +126,7 @@ void serialLoopRx() {
     if (flagEnded) {
       calculated_crc = crc16((uint8_t*)received_data, byteCount-6);
       if (received_crc == calculated_crc) {
-        USB_SERIAL.println("CRC PASS");
+        //USB_SERIAL.println("CRC PASS");
         crcPass = true;
       } else {
         //USB_SERIAL.println("CRC FAIL");
@@ -155,11 +150,6 @@ void serialLoopRx() {
           initialisePins();
           numReceivedPins = received_data[3];
           firstVpin = (received_data[5] << 8) + received_data[4];
-          USB_SERIAL.print(numReceivedPins);
-          USB_SERIAL.print(":");
-          USB_SERIAL.print(numPins);
-          USB_SERIAL.print(":");
-          USB_SERIAL.println(firstVpin);
           if (numReceivedPins == numPins) {
             displayEventFlag = 0;
             setupComplete = true;
