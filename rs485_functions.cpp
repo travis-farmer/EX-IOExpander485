@@ -134,7 +134,7 @@ void serialLoopRx() {
         USB_SERIAL.println("CRC PASS");
         crcPass = true;
       } else {
-        USB_SERIAL.println("CRC FAIL");
+        //USB_SERIAL.println("CRC FAIL");
         crcPass = false;
       }
       flagEnded = false;
