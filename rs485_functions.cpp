@@ -126,10 +126,8 @@ void serialLoopRx() {
     if (flagEnded) {
       calculated_crc = crc16((uint8_t*)received_data, byteCount-6);
       if (received_crc == calculated_crc) {
-        //USB_SERIAL.println("CRC PASS");
         crcPass = true;
       } else {
-        //USB_SERIAL.println("CRC FAIL");
         crcPass = false;
       }
       flagEnded = false;
@@ -138,8 +136,6 @@ void serialLoopRx() {
     if (crcPass) {
       int nodeTo = received_data[0];
       if (nodeTo != RS485_NODE) {
-        // retransmit and exit, if not ours
-        //SendResponce(received_data);
        return;
       }
       int nodeFr = received_data[1];
