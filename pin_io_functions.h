@@ -23,7 +23,6 @@
 #include <Arduino.h>
 #include "globals.h"
 
-bool chckPinConflicks(uint8_t pin);
 void setupPinDetails();
 void initialisePins();
 bool enableDigitalInput(uint8_t pin, bool pullup);
