@@ -6,7 +6,7 @@
 
 // 0.0.1 includes:
 //  - All previous features, but copied as a template from EX-IOExpander, and moved version
-//    to 0.0.0, and name to EX-IOExpander485.
+//    to 0.0.1, and name to EX-IOExpander485.
 //  - ifdef out USB_SERIAL opperations on one serial port boards.
 //  - fixed some Serial functions that should be pointed to USB_SERIAL.
 //  - moved from I2C comms to RS485 Comms with CRC error checking.

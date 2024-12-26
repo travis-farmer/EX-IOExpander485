@@ -1,7 +1,8 @@
 /*
  *  © 2022 Peter Cole. All rights reserved.
- *
- *  This is the example configuration file for EX-IOExpander.
+ *  © 2024, Travis Farmer. All rights reserved.
+ * 
+ *  This is the example configuration file for EX-IOExpander485.
  * 
  *  It is highly recommended to copy this to "config.h" and modify to suit your specific
  *  requirements.
