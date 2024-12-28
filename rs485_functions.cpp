@@ -62,6 +62,7 @@ uint16_t crc16(uint8_t *data, uint16_t length) {
 
 void SendResponce(uint8_t *outBuffer, int byteCount) {
       // Calculate CRC for response data
+      delay(50);
       uint16_t response_crc = crc16((uint8_t*)outBuffer, byteCount-1);
       digitalWrite(RS485_DEPIN,HIGH);
       // Send response data with CRC
@@ -76,7 +77,7 @@ void SendResponce(uint8_t *outBuffer, int byteCount) {
       }
       RS485_SERIAL.write(0xFD);
       RS485_SERIAL.write(0xFD);
-      
+      RS485_SERIAL.flush();
       digitalWrite(RS485_DEPIN,LOW);
 }
 
