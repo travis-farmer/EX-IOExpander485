@@ -28,12 +28,9 @@ uint8_t numDigitalPins = 0;   // Init with 0, will be overridden by config
 uint8_t numPWMPins = 0;  // Number of PWM capable pins
 bool setupComplete = false;   // Flag when initial configuration/setup has been received
 uint8_t outboundFlag;   // Used to determine what data to send back to the CommandStation
-char commandBuffer[3];    // Command buffer to interact with device driver
-uint8_t responseBuffer[1];   // Buffer to send single response back to device driver
 uint8_t numReceivedPins = 0;
 int byteCounter = 0;
-#define CRC16_POLYNOME              0x8001 // x15 + 1 =  1000 0000 0000 0001 = 0x8001
-#define ARRAY_SIZE 250
+#define ARRAY_SIZE 150
 bool flagEnd = false;
 bool flagEnded = false;
 bool flagStart = false;
@@ -82,7 +79,6 @@ void SendResponce(uint8_t *outBuffer, int byteCount) {
 }
 
 void serialLoopRx() {
-  int numBytes = 0;
   // Check if data is available
   if (RS485_SERIAL.available()) {
     uint8_t received_data[ARRAY_SIZE];
@@ -95,6 +91,9 @@ void serialLoopRx() {
     if (curByte == 0xFE && flagStart == false) flagStart = true;
     else if ( curByte == 0xFE && flagStart == true) {
       byteCounter = 0;
+      byteCount = 0;
+      crc[0] = 0;
+      crc[1] = 0;
       flagStarted = true;
       flagStart = false;
       flagEnded = false;
@@ -129,6 +128,7 @@ void serialLoopRx() {
       calculated_crc = crc16((uint8_t*)received_data, byteCount-6);
       if (received_crc == calculated_crc) {
         crcPass = true;
+        
       } else {
         crcPass = false;
       }
@@ -141,6 +141,7 @@ void serialLoopRx() {
        return;
       }
       int nodeFr = received_data[1];
+      if (nodeFr != 0) return; // nodes don't send to other nodes
       int AddrCode = received_data[2];
       switch (AddrCode) {
         case EXIOINIT:
@@ -277,12 +278,7 @@ void serialLoopRx() {
             break;}
       }
 
-    } else {
-      ///USB_SERIAL.println("Error: CRC mismatch!");
     }
-  } else {
-    //USB_SERIAL.print(RS485_SERIAL.available());
-    //USB_SERIAL.print(":");
   }
   crcPass = false;
 }

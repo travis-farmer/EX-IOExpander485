@@ -33,7 +33,7 @@ pinDefinition pinMap[TOTAL_PINS] = {
   {A4,AIDIO},{A5,AIDIO},{A6,AIDIO},{A7,AIDIO},{A8,AIDIO},{A9,AIDIO},{A10,AIDIO},{A11,AIDIO},
   {A12,AIDIO},{A13,AIDIO},{A14,AIDIO},{A15,AIDIO},
 };
-//,{18,DIO},{19,DIO}
+//{2,DIO},,{18,DIO},{19,DIO}
 pinName pinNameMap[TOTAL_PINS] = {
   {3,"D3"},{4,"D4"},{5,"D5"},{6,"D6"},{7,"D7"},{8,"D8"},{9,"D9"},{10,"D10"},{11,"D11"},
   {12,"D12"},{13,"D13"},{14,"D14"},{15,"D15"},{16,"D16"},{17,"D17"},{22,"D22"},{23,"D23"},
@@ -43,7 +43,7 @@ pinName pinNameMap[TOTAL_PINS] = {
   {A4,"A4"},{A5,"A5"},{A6,"A6"},{A7,"A7"},{A8,"A8"},{A9,"A9"},{A10,"A10"},{A11,"A11"},
   {A12,"A12"},{A13,"A13"},{A14,"A14"},{A15,"A15"},
 };
-// ,{18,"D18"},{19,"D19"}
+// {2,"D2"},{18,"D18"},{19,"D19"}
 // Servo support here
 Servo servo1;
 Servo servo2;

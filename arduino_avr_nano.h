@@ -24,14 +24,14 @@
  */
 
 pinDefinition pinMap[TOTAL_PINS] = {
-  {2,DIO},{3,DIOP},{4,DIO},{5,DIOP},{6,DIOP},{7,DIO},
+  {2,DIO},{3,DIOP},{4,DIO},{5,DIOP},{6,DIOP},
   {8,DIO},{9,DIOP},{10,DIOP},{11,DIOP},{12,DIO},{13,DIO},
   {A0,AIDIO},{A1,AIDIO},{A2,AIDIO},{A3,AIDIO},{A6,AI},{A7,AI},
 };
 
 
 pinName pinNameMap[TOTAL_PINS] = {
-  {2,"D2"},{3,"D3"},{4,"D4"},{5,"D5"},{6,"D6"},{7,"D7"},
+  {2,"D2"},{3,"D3"},{4,"D4"},{5,"D5"},{6,"D6"},
   {8,"D8"},{9,"D9"},{10,"D10"},{11,"D11"},{12,"D12"},{13,"D13"},
   {A0,"A0"},{A1,"A1"},{A2,"A2"},{A3,"A3"},{A6,"A6"},{A7,"A7"},
 };

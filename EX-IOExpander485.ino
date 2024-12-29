@@ -78,6 +78,7 @@ bool outputTestState = LOW;   // Flag to set outputs high or low for testing
   bool diag = false;
 #endif
 
+
 /*
 * Main setup function here.
 */
