@@ -58,7 +58,7 @@
 #define USE_FAST_WRITES
 #define RS485_SERIAL Serial1 // stay at Serial1 to avoid pin conflicts
 #define USB_SERIAL Serial
-#define RS485_DEPIN 2 /* 7 */
+#define RS485_DEPIN 7
 #elif defined(ARDUINO_NUCLEO_F411RE)
 #define BOARD_TYPE F("Nucleo-F411RE")
 #define TOTAL_PINS 40

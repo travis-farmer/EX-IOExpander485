@@ -25,7 +25,7 @@
 #include "globals.h"
 
 pinDefinition pinMap[TOTAL_PINS] = {
-  {3,DIOP},{4,DIOP},{5,DIOP},{6,DIOP},{7,DIOP},{8,DIOP},{9,DIOP},{10,DIOP},{11,DIOP},
+  {2,DIO},{3,DIOP},{4,DIOP},{5,DIOP},{6,DIOP},{8,DIOP},{9,DIOP},{10,DIOP},{11,DIOP},
   {12,DIOP},{13,DIOP},{14,DIO},{15,DIO},{16,DIO},{17,DIO},{22,DIO},{23,DIO},
   {24,DIO},{25,DIO},{26,DIO},{27,DIO},{28,DIO},{29,DIO},{30,DIO},{31,DIO},{32,DIO},{33,DIO},
   {34,DIO},{35,DIO},{36,DIO},{37,DIO},{38,DIO},{39,DIO},{40,DIO},{41,DIO},{42,DIO},{43,DIO},
@@ -33,9 +33,9 @@ pinDefinition pinMap[TOTAL_PINS] = {
   {A4,AIDIO},{A5,AIDIO},{A6,AIDIO},{A7,AIDIO},{A8,AIDIO},{A9,AIDIO},{A10,AIDIO},{A11,AIDIO},
   {A12,AIDIO},{A13,AIDIO},{A14,AIDIO},{A15,AIDIO},
 };
-//{2,DIO},,{18,DIO},{19,DIO}
+//,{7,DIOP},{18,DIO},{19,DIO}
 pinName pinNameMap[TOTAL_PINS] = {
-  {3,"D3"},{4,"D4"},{5,"D5"},{6,"D6"},{7,"D7"},{8,"D8"},{9,"D9"},{10,"D10"},{11,"D11"},
+  {2,"D2"},{3,"D3"},{4,"D4"},{5,"D5"},{6,"D6"},{8,"D8"},{9,"D9"},{10,"D10"},{11,"D11"},
   {12,"D12"},{13,"D13"},{14,"D14"},{15,"D15"},{16,"D16"},{17,"D17"},{22,"D22"},{23,"D23"},
   {24,"D24"},{25,"D25"},{26,"D26"},{27,"D27"},{28,"D28"},{29,"D29"},{30,"D30"},{31,"D31"},{32,"D32"},{33,"D33"},
   {34,"D34"},{35,"D35"},{36,"D36"},{37,"D37"},{38,"D38"},{39,"D39"},{40,"D40"},{41,"D41"},{42,"D42"},{43,"D43"},
@@ -43,7 +43,7 @@ pinName pinNameMap[TOTAL_PINS] = {
   {A4,"A4"},{A5,"A5"},{A6,"A6"},{A7,"A7"},{A8,"A8"},{A9,"A9"},{A10,"A10"},{A11,"A11"},
   {A12,"A12"},{A13,"A13"},{A14,"A14"},{A15,"A15"},
 };
-// {2,"D2"},{18,"D18"},{19,"D19"}
+// ,{7,"D7"},{18,"D18"},{19,"D19"}
 // Servo support here
 Servo servo1;
 Servo servo2;
